@@ -119,7 +119,13 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
                   className="cursor-pointer"
                   onClick={() => setCategory(cat.value)}
                 >
-                  {cat.icon} {cat.label}
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full inline-block flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    {cat.label}
+                  </span>
                 </Badge>
               ))}
             </div>
@@ -169,7 +175,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
           {/* Actions */}
           <div className="flex justify-between pt-2">
             <Button variant="destructive" size="sm" onClick={handleDelete}>
-              <Trash2 className="h-4 w-4 mr-1" />
+              <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
               삭제
             </Button>
             <div className="flex gap-2">

@@ -94,7 +94,7 @@ export function QuickCapture() {
             className="h-8 w-8"
             onClick={() => setShowImageUpload(!showImageUpload)}
           >
-            <ImagePlus className="h-4 w-4" />
+            <ImagePlus className="h-4 w-4" strokeWidth={1.5} />
           </Button>
           <Button
             type="button"
@@ -103,7 +103,7 @@ export function QuickCapture() {
             onClick={handleSubmit}
             disabled={submitting || (!text.trim() && !imageUrl)}
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4" strokeWidth={1.5} />
           </Button>
         </div>
       </div>

@@ -24,7 +24,7 @@ export default function KnowledgePage() {
     return (
       <div className="space-y-4">
         <h1 className="text-xl font-bold flex items-center gap-2">
-          <BookOpen className="h-5 w-5" /> 지식 모음
+          <BookOpen className="h-5 w-5" strokeWidth={1.5} /> 지식 모음
         </h1>
         <p className="text-muted-foreground">불러오는 중...</p>
       </div>

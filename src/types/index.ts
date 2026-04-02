@@ -18,6 +18,7 @@ export interface Entry {
   is_completed: boolean;
   input_type: EntryInputType;
   ai_metadata: Record<string, unknown>;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +39,7 @@ export interface UpdateEntryInput {
   due_date?: string | null;
   priority?: EntryPriority | null;
   is_completed?: boolean;
+  deleted_at?: string | null;
 }
 
 export interface ClassifyResult {
@@ -62,13 +64,13 @@ export interface TagInfo {
   count: number;
 }
 
-export const CATEGORIES: { value: EntryCategory; label: string; icon: string }[] = [
-  { value: 'task', label: '할 일', icon: '✅' },
-  { value: 'idea', label: '아이디어', icon: '💡' },
-  { value: 'memo', label: '메모', icon: '📝' },
-  { value: 'knowledge', label: '지식', icon: '📚' },
-  { value: 'schedule', label: '일정', icon: '📅' },
-  { value: 'inbox', label: '미분류', icon: '📥' },
+export const CATEGORIES: { value: EntryCategory; label: string; color: string }[] = [
+  { value: 'task', label: '할 일', color: '#3B82F6' },
+  { value: 'idea', label: '아이디어', color: '#EAB308' },
+  { value: 'memo', label: '메모', color: '#22C55E' },
+  { value: 'knowledge', label: '지식', color: '#A855F7' },
+  { value: 'schedule', label: '일정', color: '#F97316' },
+  { value: 'inbox', label: '미분류', color: '#9CA3AF' },
 ];
 
 export const CATEGORY_MAP = Object.fromEntries(

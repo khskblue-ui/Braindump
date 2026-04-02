@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [reclassifying, setReclassifying] = useState(false);
 
+  const filter = useEntryStore((s) => s.filter);
   const inboxCount = entries.filter((e) => e.category === 'inbox').length;
 
   const handleReclassify = async () => {
@@ -55,7 +56,7 @@ export default function DashboardPage() {
           <div className="flex-1">
             <CategoryTabs />
           </div>
-          {inboxCount > 0 && (
+          {filter.category === 'inbox' && inboxCount > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -63,7 +64,7 @@ export default function DashboardPage() {
               disabled={reclassifying}
               className="flex-shrink-0 text-xs gap-1"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
               {reclassifying ? '분류 중...' : `미분류 ${inboxCount}개 재분류`}
             </Button>
           )}

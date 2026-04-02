@@ -90,7 +90,7 @@ export function ImageUpload({ onUploaded, onRemove, currentUrl }: ImageUploadPro
           className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
           onClick={onRemove}
         >
-          <X className="h-3 w-3" />
+          <X className="h-3 w-3" strokeWidth={1.5} />
         </Button>
       </div>
     );
@@ -112,7 +112,7 @@ export function ImageUpload({ onUploaded, onRemove, currentUrl }: ImageUploadPro
         disabled={uploading}
         className="gap-1.5"
       >
-        <Upload className="h-4 w-4" />
+        <Upload className="h-4 w-4" strokeWidth={1.5} />
         {uploading ? '업로드 중...' : '파일 선택'}
       </Button>
       <Button
@@ -129,7 +129,7 @@ export function ImageUpload({ onUploaded, onRemove, currentUrl }: ImageUploadPro
         disabled={uploading}
         className="gap-1.5"
       >
-        <Camera className="h-4 w-4" />
+        <Camera className="h-4 w-4" strokeWidth={1.5} />
         카메라
       </Button>
       <span className="text-xs text-muted-foreground self-center">

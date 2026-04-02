@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import type { Entry, EntryCategory, CreateEntryInput, UpdateEntryInput } from '@/types';
 
 interface EntryFilter {
@@ -15,6 +16,7 @@ interface EntryStore {
   filter: EntryFilter;
   loading: boolean;
   page: number;
+  trashEntries: Entry[];
 
   setFilter: (filter: EntryFilter) => void;
   setPage: (page: number) => void;
@@ -24,6 +26,11 @@ interface EntryStore {
   deleteEntry: (id: string) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
   classifyEntry: (id: string) => Promise<void>;
+  softDelete: (id: string) => Promise<void>;
+  restoreEntry: (id: string) => Promise<void>;
+  fetchTrash: () => Promise<void>;
+  permanentDelete: (id: string) => Promise<void>;
+  emptyTrash: () => Promise<void>;
 }
 
 export const useEntryStore = create<EntryStore>((set, get) => ({
@@ -32,6 +39,7 @@ export const useEntryStore = create<EntryStore>((set, get) => ({
   filter: {},
   loading: false,
   page: 1,
+  trashEntries: [],
 
   setFilter: (filter) => {
     set({ filter, page: 1 });
@@ -113,7 +121,28 @@ export const useEntryStore = create<EntryStore>((set, get) => ({
   toggleComplete: async (id) => {
     const entry = get().entries.find((e) => e.id === id);
     if (!entry) return;
-    await get().updateEntry(id, { is_completed: !entry.is_completed });
+
+    if (!entry.is_completed) {
+      // Completing a task: soft delete + undo toast
+      await get().updateEntry(id, { is_completed: true, deleted_at: new Date().toISOString() });
+      set((state) => ({
+        entries: state.entries.filter((e) => e.id !== id),
+        total: state.total - 1,
+      }));
+      toast('할 일을 완료했습니다.', {
+        action: {
+          label: '되돌리기',
+          onClick: async () => {
+            await get().updateEntry(id, { is_completed: false, deleted_at: null });
+            get().fetchEntries();
+          },
+        },
+        duration: 5000,
+      });
+    } else {
+      // Uncompleting: just toggle
+      await get().updateEntry(id, { is_completed: false });
+    }
   },
 
   classifyEntry: async (id) => {
@@ -145,5 +174,50 @@ export const useEntryStore = create<EntryStore>((set, get) => ({
     } catch {
       // Classification failure is non-blocking
     }
+  },
+
+  softDelete: async (id) => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast.error('오프라인 상태에서는 삭제할 수 없습니다.');
+      return;
+    }
+    await get().updateEntry(id, { deleted_at: new Date().toISOString() });
+    set((state) => ({
+      entries: state.entries.filter((e) => e.id !== id),
+      total: state.total - 1,
+    }));
+  },
+
+  restoreEntry: async (id) => {
+    const res = await fetch(`/api/trash/${id}`, { method: 'PATCH' });
+    if (!res.ok) throw new Error('Failed to restore entry');
+    set((state) => ({
+      trashEntries: state.trashEntries.filter((e) => e.id !== id),
+    }));
+  },
+
+  fetchTrash: async () => {
+    try {
+      const res = await fetch('/api/trash');
+      if (!res.ok) throw new Error('Failed to fetch trash');
+      const data = await res.json();
+      set({ trashEntries: data.entries });
+    } catch {
+      // Non-blocking
+    }
+  },
+
+  permanentDelete: async (id) => {
+    const res = await fetch(`/api/trash/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to permanently delete entry');
+    set((state) => ({
+      trashEntries: state.trashEntries.filter((e) => e.id !== id),
+    }));
+  },
+
+  emptyTrash: async () => {
+    const res = await fetch('/api/trash/purge', { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to empty trash');
+    set({ trashEntries: [] });
   },
 }));

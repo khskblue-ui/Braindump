@@ -1,4 +1,4 @@
-import { Navigation } from "@/components/dashboard/Navigation";
+import { TopHeader, BottomNavigation } from "@/components/dashboard/Navigation";
 
 export default function MainLayout({
   children,
@@ -7,10 +7,11 @@ export default function MainLayout({
 }) {
   return (
     <div className="flex flex-col min-h-screen">
-      <Navigation />
-      <main className="flex-1 container mx-auto px-4 py-4 max-w-3xl">
+      <TopHeader />
+      <main className="flex-1 container mx-auto px-4 py-4 max-w-3xl pb-20">
         {children}
       </main>
+      <BottomNavigation />
     </div>
   );
 }

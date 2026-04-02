@@ -105,6 +105,25 @@ CREATE POLICY "Users can delete own categories"
   ON custom_categories FOR DELETE
   USING (auth.uid() = user_id);
 
+-- 9. Soft delete
+ALTER TABLE entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX idx_entries_deleted_at ON entries(user_id, deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- 10. User settings
+CREATE TABLE user_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  auto_purge_days INTEGER DEFAULT 30,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id)
+);
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own settings" ON user_settings FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can create own settings" ON user_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own settings" ON user_settings FOR UPDATE USING (auth.uid() = user_id);
+CREATE TRIGGER user_settings_updated_at BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- 8. Storage bucket for entry images
 -- Run in Supabase Dashboard > Storage > Create bucket:
 --   Name: entry-images

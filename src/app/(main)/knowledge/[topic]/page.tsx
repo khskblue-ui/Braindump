@@ -29,7 +29,7 @@ export default function TopicDetailPage() {
       <div className="flex items-center gap-2">
         <Link href="/knowledge">
           <Button variant="ghost" size="icon" className="h-8 w-8">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
           </Button>
         </Link>
         <h1 className="text-xl font-bold">📚 {topic}</h1>

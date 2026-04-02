@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
     .from('entries')
     .select('*', { count: 'exact' })
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (category && category !== 'all') {

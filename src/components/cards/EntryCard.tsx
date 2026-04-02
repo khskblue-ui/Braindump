@@ -19,7 +19,7 @@ export function EntryCard({ entry, onClick }: EntryCardProps) {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow"
+      className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98]"
       onClick={onClick}
     >
       <CardContent className="p-4">
@@ -36,8 +36,14 @@ export function EntryCard({ entry, onClick }: EntryCardProps) {
           <div className="flex-1 min-w-0 space-y-1.5">
             {/* Category + time */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm">
-                {cat?.icon} {cat?.label}
+              <span className="text-sm flex items-center gap-1.5">
+                {cat?.color && (
+                  <span
+                    className="w-2 h-2 rounded-full inline-block flex-shrink-0"
+                    style={{ backgroundColor: cat.color }}
+                  />
+                )}
+                {cat?.label}
               </span>
               <span className="text-xs text-muted-foreground flex-shrink-0">
                 {formatDistanceToNow(new Date(entry.created_at), {
@@ -58,9 +64,9 @@ export function EntryCard({ entry, onClick }: EntryCardProps) {
                   className="mt-0.5 flex-shrink-0"
                 >
                   {entry.is_completed ? (
-                    <Check className="h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 text-green-500" strokeWidth={1.5} />
                   ) : (
-                    <Square className="h-4 w-4 text-muted-foreground" />
+                    <Square className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                   )}
                 </button>
               )}
