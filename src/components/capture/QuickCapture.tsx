@@ -68,14 +68,15 @@ export function QuickCapture() {
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    e.target.value = '';
 
     if (file.type !== 'application/pdf') {
       toast.error('PDF 파일만 지원합니다.');
+      e.target.value = '';
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
       toast.error('10MB 이하의 PDF만 가능합니다.');
+      e.target.value = '';
       return;
     }
 
@@ -89,7 +90,15 @@ export function QuickCapture() {
         body: formData,
       });
 
-      const data = await res.json();
+      // Reset file input after fetch completes (not before)
+      e.target.value = '';
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`서버 오류 (${res.status})`);
+      }
 
       if (!res.ok) {
         throw new Error(data.error || 'PDF 처리에 실패했습니다.');

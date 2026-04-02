@@ -117,7 +117,11 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (err) {
-    console.error('PDF processing error:', err);
-    return NextResponse.json({ error: 'PDF 처리에 실패했습니다.' }, { status: 500 });
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('PDF processing error:', errMsg, err);
+    return NextResponse.json(
+      { error: `PDF 처리에 실패했습니다: ${errMsg.slice(0, 100)}` },
+      { status: 500 }
+    );
   }
 }
