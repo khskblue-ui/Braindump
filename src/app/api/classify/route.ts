@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { isAllowedImageUrl } from '@/lib/url-validation';
 import { classifyText, classifyImage } from '@/lib/classify';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 const MAX_BATCH = 50;
 const MAX_TEXT_LENGTH = 10000;
+const CONCURRENCY = 4; // Parallel AI calls
 
-// PATCH: 미분류(inbox) 항목 일괄 재분류
+// PATCH: 미분류(inbox) 항목 일괄 재분류 — 병렬 처리 (동시성 제한)
 export async function PATCH() {
   const auth = await requireAuth();
   if ('error' in auth && auth.error) return auth.error;
@@ -25,54 +28,88 @@ export async function PATCH() {
 
   const limited = inboxEntries.slice(0, MAX_BATCH);
 
-  let reclassified = 0;
+  // Process in parallel with concurrency limit
   const results: Array<{ id: string; category: string; error?: string }> = [];
+  let reclassified = 0;
 
-  for (const fullEntry of limited) {
-    try {
-      let result;
-      if (fullEntry.image_url && (fullEntry.input_type === 'image' || fullEntry.input_type === 'mixed')) {
-        if (!isAllowedImageUrl(fullEntry.image_url)) continue;
+  // Chunk into groups of CONCURRENCY
+  for (let i = 0; i < limited.length; i += CONCURRENCY) {
+    const chunk = limited.slice(i, i + CONCURRENCY);
+    const chunkResults = await Promise.allSettled(
+      chunk.map((entry) => classifySingleEntry(entry, supabase, user))
+    );
 
-        const imageResponse = await fetch(fullEntry.image_url);
-        if (!imageResponse.ok) continue;
-        const imageBuffer = await imageResponse.arrayBuffer();
-        const base64 = Buffer.from(imageBuffer).toString('base64');
-        const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-        const rawText = fullEntry.raw_text || '';
-        if (rawText.length > MAX_TEXT_LENGTH) continue;
-        result = await classifyImage(base64, contentType as 'image/jpeg' | 'image/png' | 'image/webp', rawText || undefined);
-      } else if (fullEntry.raw_text) {
-        if (fullEntry.raw_text.length > MAX_TEXT_LENGTH) continue;
-        result = await classifyText(fullEntry.raw_text);
+    for (let j = 0; j < chunkResults.length; j++) {
+      const settled = chunkResults[j];
+      const entry = chunk[j];
+      if (settled.status === 'fulfilled' && settled.value) {
+        reclassified++;
+        results.push({ id: entry.id, category: settled.value });
       } else {
-        continue;
+        const errMsg = settled.status === 'rejected' ? String(settled.reason) : '분류 실패';
+        results.push({ id: entry.id, category: 'inbox', error: errMsg });
       }
-
-      const topic = result.category === 'knowledge' && result.topic
-        ? result.topic.trim().toLowerCase() : null;
-
-      const updateData: Record<string, unknown> = {
-        category: result.category,
-        tags: result.tags,
-        summary: result.summary || null,
-        priority: result.priority || null,
-        ai_metadata: result,
-      };
-      if (result.extracted_text) updateData.extracted_text = result.extracted_text;
-      if (topic) updateData.topic = topic;
-      if (result.due_date) updateData.due_date = result.due_date;
-
-      await supabase.from('entries').update(updateData).eq('id', fullEntry.id).eq('user_id', user.id);
-      reclassified++;
-      results.push({ id: fullEntry.id, category: result.category });
-    } catch (err) {
-      console.error('Batch reclassify error for entry', fullEntry.id, err);
-      results.push({ id: fullEntry.id, category: 'inbox', error: '분류 처리 중 오류가 발생했습니다.' });
     }
   }
 
   return NextResponse.json({ reclassified, total: inboxEntries.length, results });
+}
+
+// Helper: classify + update a single entry, returns category on success
+async function classifySingleEntry(
+  entry: Record<string, unknown>,
+  supabase: SupabaseClient,
+  user: User
+): Promise<string | null> {
+  const rawText = (entry.raw_text as string) || '';
+  const imageUrl = entry.image_url as string | null;
+  const inputType = entry.input_type as string;
+
+  let result;
+
+  if (imageUrl && (inputType === 'image' || inputType === 'mixed')) {
+    if (!isAllowedImageUrl(imageUrl)) return null;
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) return null;
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const base64 = Buffer.from(imageBuffer).toString('base64');
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    if (rawText.length > MAX_TEXT_LENGTH) return null;
+    result = await classifyImage(
+      base64,
+      contentType as 'image/jpeg' | 'image/png' | 'image/webp',
+      rawText || undefined
+    );
+  } else if (rawText) {
+    if (rawText.length > MAX_TEXT_LENGTH) return null;
+    result = await classifyText(rawText);
+  } else {
+    return null;
+  }
+
+  const topic =
+    result.category === 'knowledge' && result.topic
+      ? result.topic.trim().toLowerCase()
+      : null;
+
+  const updateData: Record<string, unknown> = {
+    category: result.category,
+    tags: result.tags,
+    summary: result.summary || null,
+    priority: result.priority || null,
+    ai_metadata: result,
+  };
+  if (result.extracted_text) updateData.extracted_text = result.extracted_text;
+  if (topic) updateData.topic = topic;
+  if (result.due_date) updateData.due_date = result.due_date;
+
+  await supabase
+    .from('entries')
+    .update(updateData)
+    .eq('id', entry.id as string)
+    .eq('user_id', user.id);
+
+  return result.category;
 }
 
 // POST: 단건 분류
@@ -86,7 +123,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'entry_id가 필요합니다.' }, { status: 400 });
   }
 
-  // Fetch the entry
   const { data: entry, error: fetchError } = await supabase
     .from('entries')
     .select('*')
@@ -106,19 +142,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '허용되지 않은 이미지 URL입니다.' }, { status: 400 });
       }
 
-      // Fetch image and convert to base64
       const imageResponse = await fetch(entry.image_url);
       const imageBuffer = await imageResponse.arrayBuffer();
       const base64 = Buffer.from(imageBuffer).toString('base64');
-
       const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
       const mediaType = contentType as 'image/jpeg' | 'image/png' | 'image/webp';
-
       const rawText = entry.raw_text || '';
       if (rawText.length > MAX_TEXT_LENGTH) {
         return NextResponse.json({ error: '텍스트가 너무 깁니다.' }, { status: 400 });
       }
-
       result = await classifyImage(base64, mediaType, rawText || undefined);
     } else if (entry.raw_text) {
       if (entry.raw_text.length > MAX_TEXT_LENGTH) {
@@ -129,12 +161,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '분류할 내용이 없습니다.' }, { status: 400 });
     }
 
-    // Normalize topic for knowledge category
-    const topic = result.category === 'knowledge' && result.topic
-      ? result.topic.trim().toLowerCase()
-      : null;
+    const topic =
+      result.category === 'knowledge' && result.topic
+        ? result.topic.trim().toLowerCase()
+        : null;
 
-    // Update entry with classification result
     const updateData: Record<string, unknown> = {
       category: result.category,
       tags: result.tags,
@@ -142,7 +173,6 @@ export async function POST(request: NextRequest) {
       priority: result.priority || null,
       ai_metadata: result,
     };
-
     if (result.extracted_text) updateData.extracted_text = result.extracted_text;
     if (topic) updateData.topic = topic;
     if (result.due_date) updateData.due_date = result.due_date;
@@ -161,7 +191,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error('Classification error:', err);
-    // Non-blocking: keep entry as inbox
     return NextResponse.json(
       { category: 'inbox', tags: [], error: 'Classification failed' },
       { status: 200 }

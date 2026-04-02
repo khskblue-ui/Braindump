@@ -181,6 +181,8 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             <img
               src={entry.image_url}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="w-full max-h-64 object-contain rounded-md border"
             />
           )}

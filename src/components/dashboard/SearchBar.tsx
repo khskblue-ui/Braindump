@@ -30,7 +30,7 @@ export function SearchBar() {
       if (trimmed === lastValueRef.current) return;
       lastValueRef.current = trimmed;
       applySearch(trimmed);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [value, applySearch]);
 

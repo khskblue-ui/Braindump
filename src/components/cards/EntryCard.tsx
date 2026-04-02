@@ -31,6 +31,8 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
             <img
               src={entry.image_thumbnail_url}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="w-16 h-16 rounded-md object-cover flex-shrink-0"
             />
           )}
