@@ -5,7 +5,7 @@ import { Entry, CATEGORY_MAP } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Square, Clock } from 'lucide-react';
+import { Check, Square, Clock, FileText } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -59,7 +59,10 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
 
             {/* Text content */}
             <div className="flex items-start gap-2">
-              {entry.category === 'task' && (
+              {entry.input_type === 'pdf' && (
+                <FileText className="h-4 w-4 mt-0.5 flex-shrink-0 text-red-500" strokeWidth={1.5} />
+              )}
+              {entry.category === 'task' && entry.input_type !== 'pdf' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

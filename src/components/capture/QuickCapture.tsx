@@ -5,7 +5,7 @@ import { useEntryStore } from '@/stores/entry-store';
 import { ImageUpload } from './ImageUpload';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, ImagePlus } from 'lucide-react';
+import { Send, ImagePlus, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function QuickCapture() {
@@ -14,8 +14,11 @@ export function QuickCapture() {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const createEntry = useEntryStore((s) => s.createEntry);
+  const fetchEntries = useEntryStore((s) => s.fetchEntries);
 
   // Auto-focus on mount
   useEffect(() => {
@@ -62,6 +65,54 @@ export function QuickCapture() {
     }
   };
 
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (file.type !== 'application/pdf') {
+      toast.error('PDF 파일만 지원합니다.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('10MB 이하의 PDF만 가능합니다.');
+      return;
+    }
+
+    setUploadingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'PDF 처리에 실패했습니다.');
+      }
+
+      // Refresh entries to show the new PDF entry
+      await fetchEntries();
+
+      const pages = data.pages || '?';
+      const chars = data.textLength ? `${Math.round(data.textLength / 1000)}K자` : '';
+      toast.success(`PDF 처리 완료 (${pages}페이지, ${chars}). AI가 분류했습니다.`);
+
+      if (data.classifyError) {
+        toast.warning(data.classifyError);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'PDF 처리에 실패했습니다.';
+      toast.error(msg);
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -83,30 +134,60 @@ export function QuickCapture() {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="생각을 입력하세요... (Enter로 저장, Shift+Enter로 줄바꿈)"
-          className="min-h-[80px] pr-20 resize-none"
-          disabled={submitting}
+          className="min-h-[80px] pr-24 resize-none"
+          disabled={submitting || uploadingPdf}
         />
         <div className="absolute bottom-2 right-2 flex gap-1">
+          {/* PDF Upload */}
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept="application/pdf"
+            onChange={handlePdfUpload}
+            className="hidden"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => pdfInputRef.current?.click()}
+            disabled={uploadingPdf}
+            title="PDF 업로드"
+          >
+            <FileText className="h-4 w-4" strokeWidth={1.5} />
+          </Button>
+          {/* Image Upload */}
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="h-8 w-8"
             onClick={() => setShowImageUpload(!showImageUpload)}
+            disabled={uploadingPdf}
           >
             <ImagePlus className="h-4 w-4" strokeWidth={1.5} />
           </Button>
+          {/* Send */}
           <Button
             type="button"
             size="icon"
             className="h-8 w-8"
             onClick={handleSubmit}
-            disabled={submitting || (!text.trim() && !imageUrl)}
+            disabled={submitting || uploadingPdf || (!text.trim() && !imageUrl)}
           >
             <Send className="h-4 w-4" strokeWidth={1.5} />
           </Button>
         </div>
       </div>
+
+      {/* PDF uploading indicator */}
+      {uploadingPdf && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          PDF 분석 중... (텍스트 추출 + AI 요약)
+        </div>
+      )}
 
       {showImageUpload && (
         <ImageUpload

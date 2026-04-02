@@ -41,10 +41,10 @@ const classifySchema = z.object({
   related_topics: z.array(z.string()).optional(),
 });
 
-export async function classifyText(text: string): Promise<ClassifyResult> {
+export async function classifyText(text: string, options?: { maxTokens?: number }): Promise<ClassifyResult> {
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 500,
+    max_tokens: options?.maxTokens ?? 500,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: text }],
   });

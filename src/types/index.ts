@@ -1,5 +1,5 @@
 export type EntryCategory = 'task' | 'idea' | 'memo' | 'knowledge' | 'schedule' | 'inbox';
-export type EntryInputType = 'text' | 'image' | 'mixed';
+export type EntryInputType = 'text' | 'image' | 'mixed' | 'pdf';
 export type EntryPriority = 'high' | 'medium' | 'low';
 
 export interface Entry {
