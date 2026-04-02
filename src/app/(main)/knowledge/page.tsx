@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,15 +9,41 @@ import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import type { TopicInfo } from '@/types';
 
+// Simple module-level cache to avoid refetching on every tab switch
+let cachedTopics: TopicInfo[] | null = null;
+
 export default function KnowledgePage() {
-  const [topics, setTopics] = useState<TopicInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [topics, setTopics] = useState<TopicInfo[]>(cachedTopics || []);
+  const [loading, setLoading] = useState(!cachedTopics);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
-    fetch('/api/topics')
-      .then((res) => res.json())
-      .then((data) => setTopics(data.topics || []))
-      .finally(() => setLoading(false));
+    // Skip if already fetched in this session and cache exists
+    if (cachedTopics && !fetchedRef.current) {
+      fetchedRef.current = true;
+      // Background refresh
+      fetch('/api/topics')
+        .then((res) => res.json())
+        .then((data) => {
+          const fresh = data.topics || [];
+          cachedTopics = fresh;
+          setTopics(fresh);
+        })
+        .catch(() => {});
+      return;
+    }
+
+    if (!fetchedRef.current) {
+      fetchedRef.current = true;
+      fetch('/api/topics')
+        .then((res) => res.json())
+        .then((data) => {
+          const fresh = data.topics || [];
+          cachedTopics = fresh;
+          setTopics(fresh);
+        })
+        .finally(() => setLoading(false));
+    }
   }, []);
 
   if (loading) {

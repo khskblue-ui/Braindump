@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Trash2 } from 'lucide-react';
+import { Settings, LogOut, Trash2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 const PURGE_OPTIONS = [
@@ -17,6 +17,11 @@ const PURGE_OPTIONS = [
 export default function SettingsPage() {
   const { user, signOut } = useAuthStore();
   const [autoPurgeDays, setAutoPurgeDays] = useState<number>(30);
+  const [savedValue, setSavedValue] = useState<number>(30);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const hasChanges = autoPurgeDays !== savedValue;
 
   useEffect(() => {
     fetch('/api/settings')
@@ -24,23 +29,28 @@ export default function SettingsPage() {
       .then((data) => {
         if (data.settings?.auto_purge_days !== undefined) {
           setAutoPurgeDays(data.settings.auto_purge_days);
+          setSavedValue(data.settings.auto_purge_days);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const handlePurgeChange = async (value: number) => {
-    setAutoPurgeDays(value);
+  const handleSave = async () => {
+    setSaving(true);
     try {
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ auto_purge_days: value }),
+        body: JSON.stringify({ auto_purge_days: autoPurgeDays }),
       });
       if (!res.ok) throw new Error();
-      toast('설정이 저장되었습니다.');
+      setSavedValue(autoPurgeDays);
+      toast.success('설정이 저장되었습니다.');
     } catch {
       toast.error('설정 저장에 실패했습니다.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -79,7 +89,8 @@ export default function SettingsPage() {
             </label>
             <select
               value={autoPurgeDays}
-              onChange={(e) => handlePurgeChange(Number(e.target.value))}
+              onChange={(e) => setAutoPurgeDays(Number(e.target.value))}
+              disabled={loading}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {PURGE_OPTIONS.map((opt) => (
@@ -92,6 +103,16 @@ export default function SettingsPage() {
               삭제된 항목이 자동으로 영구 삭제되는 기간을 설정합니다.
             </p>
           </div>
+
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || saving}
+            size="sm"
+            className="w-full gap-1.5"
+          >
+            <Save className="h-4 w-4" strokeWidth={1.5} />
+            {saving ? '저장 중...' : '저장'}
+          </Button>
         </CardContent>
       </Card>
     </div>
