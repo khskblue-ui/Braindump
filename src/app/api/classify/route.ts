@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth } from '@/lib/auth';
+import { isAllowedImageUrl } from '@/lib/url-validation';
 import { classifyText, classifyImage } from '@/lib/classify';
+
+const MAX_BATCH = 50;
+const MAX_TEXT_LENGTH = 10000;
 
 // PATCH: 미분류(inbox) 항목 일괄 재분류
 export async function PATCH() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  const auth = await requireAuth();
+  if ('error' in auth && auth.error) return auth.error;
+  const { supabase, user } = auth as Exclude<typeof auth, { error: NextResponse }>;
 
   const { data: inboxEntries, error } = await supabase
     .from('entries')
-    .select('id')
+    .select('*')
     .eq('user_id', user.id)
     .eq('category', 'inbox')
     .order('created_at', { ascending: false });
@@ -19,31 +23,26 @@ export async function PATCH() {
     return NextResponse.json({ reclassified: 0, total: 0 });
   }
 
+  const limited = inboxEntries.slice(0, MAX_BATCH);
+
   let reclassified = 0;
   const results: Array<{ id: string; category: string; error?: string }> = [];
 
-  for (const entry of inboxEntries) {
+  for (const fullEntry of limited) {
     try {
-      const { data: fullEntry } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('id', entry.id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (!fullEntry) continue;
-
       let result;
       if (fullEntry.image_url && (fullEntry.input_type === 'image' || fullEntry.input_type === 'mixed')) {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (supabaseUrl && !fullEntry.image_url.startsWith(supabaseUrl)) continue;
+        if (!isAllowedImageUrl(fullEntry.image_url)) continue;
 
         const imageResponse = await fetch(fullEntry.image_url);
         const imageBuffer = await imageResponse.arrayBuffer();
         const base64 = Buffer.from(imageBuffer).toString('base64');
         const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-        result = await classifyImage(base64, contentType as 'image/jpeg' | 'image/png' | 'image/webp', fullEntry.raw_text || undefined);
+        const rawText = fullEntry.raw_text || '';
+        if (rawText.length > MAX_TEXT_LENGTH) continue;
+        result = await classifyImage(base64, contentType as 'image/jpeg' | 'image/png' | 'image/webp', rawText || undefined);
       } else if (fullEntry.raw_text) {
+        if (fullEntry.raw_text.length > MAX_TEXT_LENGTH) continue;
         result = await classifyText(fullEntry.raw_text);
       } else {
         continue;
@@ -63,11 +62,12 @@ export async function PATCH() {
       if (topic) updateData.topic = topic;
       if (result.due_date) updateData.due_date = result.due_date;
 
-      await supabase.from('entries').update(updateData).eq('id', entry.id).eq('user_id', user.id);
+      await supabase.from('entries').update(updateData).eq('id', fullEntry.id).eq('user_id', user.id);
       reclassified++;
-      results.push({ id: entry.id, category: result.category });
+      results.push({ id: fullEntry.id, category: result.category });
     } catch (err) {
-      results.push({ id: entry.id, category: 'inbox', error: err instanceof Error ? err.message : 'unknown' });
+      console.error('Batch reclassify error for entry', fullEntry.id, err);
+      results.push({ id: fullEntry.id, category: 'inbox', error: '분류 처리 중 오류가 발생했습니다.' });
     }
   }
 
@@ -76,9 +76,9 @@ export async function PATCH() {
 
 // POST: 단건 분류
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  const auth = await requireAuth();
+  if ('error' in auth && auth.error) return auth.error;
+  const { supabase, user } = auth as Exclude<typeof auth, { error: NextResponse }>;
 
   const { entry_id } = await request.json();
   if (!entry_id) {
@@ -101,9 +101,7 @@ export async function POST(request: NextRequest) {
     let result;
 
     if (entry.image_url && (entry.input_type === 'image' || entry.input_type === 'mixed')) {
-      // Validate image URL origin (prevent SSRF)
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (supabaseUrl && !entry.image_url.startsWith(supabaseUrl)) {
+      if (!isAllowedImageUrl(entry.image_url)) {
         return NextResponse.json({ error: '허용되지 않은 이미지 URL입니다.' }, { status: 400 });
       }
 
@@ -115,8 +113,16 @@ export async function POST(request: NextRequest) {
       const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
       const mediaType = contentType as 'image/jpeg' | 'image/png' | 'image/webp';
 
-      result = await classifyImage(base64, mediaType, entry.raw_text || undefined);
+      const rawText = entry.raw_text || '';
+      if (rawText.length > MAX_TEXT_LENGTH) {
+        return NextResponse.json({ error: '텍스트가 너무 깁니다.' }, { status: 400 });
+      }
+
+      result = await classifyImage(base64, mediaType, rawText || undefined);
     } else if (entry.raw_text) {
+      if (entry.raw_text.length > MAX_TEXT_LENGTH) {
+        return NextResponse.json({ error: '텍스트가 너무 깁니다.' }, { status: 400 });
+      }
       result = await classifyText(entry.raw_text);
     } else {
       return NextResponse.json({ error: '분류할 내용이 없습니다.' }, { status: 400 });
@@ -147,7 +153,8 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id);
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error('Classification update error:', updateError);
+      return NextResponse.json({ error: '분류 결과 저장에 실패했습니다.' }, { status: 500 });
     }
 
     return NextResponse.json(result);

@@ -108,7 +108,7 @@ CREATE POLICY "Users can delete own categories"
 -- 8. Storage bucket for entry images
 -- Run in Supabase Dashboard > Storage > Create bucket:
 --   Name: entry-images
---   Public: true
+--   Public: false
 --   File size limit: 5MB
 --   Allowed MIME types: image/jpeg, image/png, image/webp
 
@@ -120,9 +120,9 @@ CREATE POLICY "Authenticated users can upload own images"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
-CREATE POLICY "Anyone can view images"
+CREATE POLICY "Users can view own images"
   ON storage.objects FOR SELECT
-  USING (bucket_id = 'entry-images');
+  USING (bucket_id = 'entry-images' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 CREATE POLICY "Users can delete own images"
   ON storage.objects FOR DELETE

@@ -86,7 +86,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
     .join('');
 
   // Extract JSON from response (handle markdown code blocks)
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = text.match(/\{[\s\S]*?\}/);
   if (!jsonMatch) {
     return { category: 'inbox', tags: [] };
   }

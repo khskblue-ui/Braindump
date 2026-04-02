@@ -7,6 +7,7 @@ import type { User } from '@supabase/supabase-js';
 interface AuthStore {
   user: User | null;
   loading: boolean;
+  initialized: boolean;
   initialize: () => Promise<(() => void) | void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
@@ -14,11 +15,15 @@ interface AuthStore {
   signOut: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
+export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
   loading: true,
+  initialized: false,
 
   initialize: async () => {
+    if (get().initialized) return;
+    set({ initialized: true });
+
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     set({ user, loading: false });
@@ -56,5 +61,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
     const supabase = createClient();
     await supabase.auth.signOut();
     set({ user: null });
+
+    // Clear service worker caches on sign-out
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
   },
 }));

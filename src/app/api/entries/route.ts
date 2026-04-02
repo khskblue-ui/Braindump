@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth } from '@/lib/auth';
+import { isAllowedImageUrl } from '@/lib/url-validation';
+import { attachSignedUrls } from '@/lib/signed-url';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: '인증이 필요합니다.', detail: authError?.message }, { status: 401 });
-    }
+    const auth = await requireAuth();
+    if ('error' in auth && auth.error) return auth.error;
+    const { supabase, user } = auth as Exclude<typeof auth, { error: NextResponse }>;
 
     const body = await request.json();
     const { raw_text, image_url, image_thumbnail_url, input_type } = body;
 
     if (!raw_text && !image_url) {
       return NextResponse.json({ error: '텍스트 또는 이미지가 필요합니다.' }, { status: 400 });
+    }
+
+    // Validate image_url if provided (prevent SSRF)
+    if (image_url && !isAllowedImageUrl(image_url)) {
+      return NextResponse.json({ error: '허용되지 않은 이미지 URL입니다.' }, { status: 400 });
+    }
+    if (image_thumbnail_url && !isAllowedImageUrl(image_thumbnail_url)) {
+      return NextResponse.json({ error: '허용되지 않은 이미지 URL입니다.' }, { status: 400 });
     }
 
     const { data: entry, error } = await supabase
@@ -29,26 +37,31 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+    if (error) {
+      console.error('Entry creation error:', error);
+      return NextResponse.json({ error: '항목 생성에 실패했습니다.' }, { status: 500 });
+    }
 
     return NextResponse.json({ entry });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('Entry creation error:', e);
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  const auth = await requireAuth();
+  if ('error' in auth && auth.error) return auth.error;
+  const { supabase, user } = auth as Exclude<typeof auth, { error: NextResponse }>;
 
   const { searchParams } = new URL(request.url);
   const category = searchParams.get('category');
   const tag = searchParams.get('tag');
   const query = searchParams.get('q');
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '20');
+  const rawPage = parseInt(searchParams.get('page') || '1');
+  const rawLimit = parseInt(searchParams.get('limit') || '20');
+  const page = isNaN(rawPage) || rawPage < 1 ? 1 : Math.min(rawPage, 1000);
+  const limit = isNaN(rawLimit) || rawLimit < 1 ? 20 : Math.min(rawLimit, 100);
   const offset = (page - 1) * limit;
 
   let dbQuery = supabase
@@ -73,7 +86,13 @@ export async function GET(request: NextRequest) {
 
   const { data: entries, count, error } = await dbQuery;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('Entry fetch error:', error);
+    return NextResponse.json({ error: '항목 조회에 실패했습니다.' }, { status: 500 });
+  }
 
-  return NextResponse.json({ entries: entries || [], total: count || 0, page });
+  // Generate signed URLs for image entries
+  const entriesWithSignedUrls = entries ? await attachSignedUrls(supabase, entries) : [];
+
+  return NextResponse.json({ entries: entriesWithSignedUrls, total: count || 0, page });
 }

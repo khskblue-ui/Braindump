@@ -22,7 +22,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: Network First for API, Cache First for static
+// Fetch: Network Only for API/Supabase, Cache First for static
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -33,29 +33,9 @@ self.addEventListener('fetch', (event) => {
   // Skip navigation requests — let the server/proxy handle redirects
   if (request.mode === 'navigate') return;
 
-  // API calls: Network First
+  // API calls and Supabase requests: Network Only (no caching)
   if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase.co')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  // Supabase Storage images: Cache First
-  if (url.hostname.includes('supabase.co') && url.pathname.includes('/storage/')) {
-    event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        return response;
-      }))
-    );
+    event.respondWith(fetch(request));
     return;
   }
 

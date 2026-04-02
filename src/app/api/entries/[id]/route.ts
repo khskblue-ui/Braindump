@@ -1,13 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth } from '@/lib/auth';
+import { attachSignedUrls } from '@/lib/signed-url';
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireAuth();
+  if ('error' in auth && auth.error) return auth.error;
+  const { supabase, user } = auth as Exclude<typeof auth, { error: NextResponse }>;
+
+  const { id } = await params;
+
+  const { data: entry, error } = await supabase
+    .from('entries')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (error || !entry) {
+    return NextResponse.json({ error: '항목을 찾을 수 없습니다.' }, { status: 404 });
+  }
+
+  const [entryWithSignedUrls] = await attachSignedUrls(supabase, [entry]);
+
+  return NextResponse.json({ entry: entryWithSignedUrls });
+}
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  const auth = await requireAuth();
+  if ('error' in auth && auth.error) return auth.error;
+  const { supabase, user } = auth as Exclude<typeof auth, { error: NextResponse }>;
 
   const { id } = await params;
   const body = await request.json();
@@ -19,6 +46,10 @@ export async function PATCH(
     if (key in body) allowed[key] = body[key];
   }
 
+  if (Object.keys(allowed).length === 0) {
+    return NextResponse.json({ error: '수정할 필드가 없습니다.' }, { status: 400 });
+  }
+
   const { data: entry, error } = await supabase
     .from('entries')
     .update(allowed)
@@ -27,19 +58,22 @@ export async function PATCH(
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('Entry update error:', error);
+    return NextResponse.json({ error: '항목 수정에 실패했습니다.' }, { status: 500 });
+  }
   if (!entry) return NextResponse.json({ error: '항목을 찾을 수 없습니다.' }, { status: 404 });
 
   return NextResponse.json({ entry });
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  const auth = await requireAuth();
+  if ('error' in auth && auth.error) return auth.error;
+  const { supabase, user } = auth as Exclude<typeof auth, { error: NextResponse }>;
 
   const { id } = await params;
 
@@ -51,11 +85,15 @@ export async function DELETE(
     .eq('user_id', user.id)
     .single();
 
-  // Delete image from storage if exists
+  // Delete image from storage if exists (wrapped in try/catch so DB delete always proceeds)
   if (entry?.image_url) {
-    const path = new URL(entry.image_url).pathname.split('/entry-images/')[1];
-    if (path) {
-      await supabase.storage.from('entry-images').remove([path]);
+    try {
+      const path = new URL(entry.image_url).pathname.split('/entry-images/')[1];
+      if (path) {
+        await supabase.storage.from('entry-images').remove([path]);
+      }
+    } catch (err) {
+      console.error('Storage cleanup error:', err);
     }
   }
 
@@ -65,7 +103,10 @@ export async function DELETE(
     .eq('id', id)
     .eq('user_id', user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('Entry delete error:', error);
+    return NextResponse.json({ error: '항목 삭제에 실패했습니다.' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
