@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Entry, CATEGORY_MAP } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +14,8 @@ interface EntryCardProps {
   onClick?: () => void;
 }
 
-export function EntryCard({ entry, onClick }: EntryCardProps) {
+// M4: React.memo to prevent unnecessary re-renders
+export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardProps) {
   const toggleComplete = useEntryStore((s) => s.toggleComplete);
   const cat = CATEGORY_MAP[entry.category];
 
@@ -107,4 +109,4 @@ export function EntryCard({ entry, onClick }: EntryCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

@@ -1,18 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useEntryStore } from '@/stores/entry-store';
 import { QuickCapture } from '@/components/capture/QuickCapture';
 import { EntryCard } from '@/components/cards/EntryCard';
 import { EntryCardSkeleton } from '@/components/cards/EntryCardSkeleton';
 import { CategoryTabs } from '@/components/dashboard/CategoryTabs';
 import { SearchBar } from '@/components/dashboard/SearchBar';
-import { EntryEditModal } from '@/components/entry/EntryEditModal';
 import { ReminderCheck } from '@/components/dashboard/ReminderCheck';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Entry } from '@/types';
+
+// Lazy load heavy modal component (performance: reduce initial bundle)
+const EntryEditModal = dynamic(
+  () => import('@/components/entry/EntryEditModal').then((m) => ({ default: m.EntryEditModal })),
+  { ssr: false }
+);
 
 export default function DashboardPage() {
   const entries = useEntryStore((s) => s.entries);
@@ -22,7 +28,11 @@ export default function DashboardPage() {
   const [reclassifying, setReclassifying] = useState(false);
 
   const filter = useEntryStore((s) => s.filter);
-  const inboxCount = entries.filter((e) => e.category === 'inbox').length;
+  // M3: useMemo to avoid recalculating on every render
+  const inboxCount = useMemo(
+    () => entries.filter((e) => e.category === 'inbox').length,
+    [entries]
+  );
 
   const handleReclassify = async () => {
     setReclassifying(true);
@@ -42,9 +52,11 @@ export default function DashboardPage() {
     }
   };
 
+  // M7: Empty deps - fetchEntries reference is stable from Zustand
   useEffect(() => {
     fetchEntries();
-  }, [fetchEntries]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -95,7 +107,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit Modal (lazy loaded) */}
       {selectedEntry && (
         <EntryEditModal
           entry={selectedEntry}

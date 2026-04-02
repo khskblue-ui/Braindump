@@ -1,3 +1,4 @@
+import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import type { ClassifyResult } from '@/types';
@@ -86,7 +87,8 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
     .join('');
 
   // Extract JSON from response (handle markdown code blocks)
-  const jsonMatch = text.match(/\{[\s\S]*?\}/);
+  // Use greedy match to capture nested objects/arrays
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     return { category: 'inbox', tags: [] };
   }

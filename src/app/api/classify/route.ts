@@ -35,6 +35,7 @@ export async function PATCH() {
         if (!isAllowedImageUrl(fullEntry.image_url)) continue;
 
         const imageResponse = await fetch(fullEntry.image_url);
+        if (!imageResponse.ok) continue;
         const imageBuffer = await imageResponse.arrayBuffer();
         const base64 = Buffer.from(imageBuffer).toString('base64');
         const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';

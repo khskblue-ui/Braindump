@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
 import type { Entry, EntryCategory, EntryPriority } from '@/types';
 import { CATEGORIES } from '@/types';
@@ -38,6 +38,17 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   );
   const [saving, setSaving] = useState(false);
   const [reclassifying, setReclassifying] = useState(false);
+  // H4: Track reminder timeout for cleanup
+  const reminderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // H4: Cleanup reminder timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -71,6 +82,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
     }
   };
 
+  // C3: Single API call, update store directly from result (no double call)
   const handleReclassify = async () => {
     setReclassifying(true);
     try {
@@ -81,14 +93,32 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
       });
       if (!res.ok) throw new Error();
       const result = await res.json();
+
+      // Update local modal state
       if (result.category) setCategory(result.category);
       if (result.tags) setTagsInput(result.tags.join(', '));
       if (result.topic) setTopic(result.topic);
       if (result.priority) setPriority(result.priority);
       if (result.summary) setSummary(result.summary);
-      // Also update the store
-      const classifyEntry = useEntryStore.getState().classifyEntry;
-      await classifyEntry(entry.id);
+      if (result.due_date) setDueDate(result.due_date.slice(0, 16));
+
+      // Update store directly (no second API call)
+      useEntryStore.setState((state) => ({
+        entries: state.entries.map((e) =>
+          e.id === entry.id
+            ? {
+                ...e,
+                category: result.category ?? e.category,
+                tags: result.tags ?? e.tags,
+                topic: result.topic ?? e.topic,
+                summary: result.summary ?? e.summary,
+                extracted_text: result.extracted_text ?? e.extracted_text,
+                due_date: result.due_date ?? e.due_date,
+                priority: result.priority ?? e.priority,
+              }
+            : e
+        ),
+      }));
       toast.success('AI가 재분류했습니다.');
     } catch {
       toast.error('재분류에 실패했습니다.');
@@ -118,7 +148,11 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
       toast.warning('일정이 이미 지났거나 10분 이내입니다.');
       return;
     }
-    setTimeout(() => {
+    // H4: Clear previous timer and track new one
+    if (reminderTimeoutRef.current) {
+      clearTimeout(reminderTimeoutRef.current);
+    }
+    reminderTimeoutRef.current = setTimeout(() => {
       new Notification('BrainDump 리마인드', {
         body: summary || rawText || '일정이 곧 시작됩니다',
         icon: '/icons/icon-192x192.png',

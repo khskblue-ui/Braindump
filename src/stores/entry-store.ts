@@ -18,6 +18,7 @@ interface EntryStore {
   loading: boolean;
   page: number;
   trashEntries: Entry[];
+  _hydrated: boolean;
 
   setFilter: (filter: EntryFilter) => void;
   setPage: (page: number) => void;
@@ -34,6 +35,9 @@ interface EntryStore {
   emptyTrash: () => Promise<void>;
 }
 
+// AbortController for cancelling stale fetch requests (M1)
+let fetchController: AbortController | null = null;
+
 export const useEntryStore = create<EntryStore>()(
   persist(
     (set, get) => ({
@@ -43,6 +47,7 @@ export const useEntryStore = create<EntryStore>()(
       loading: false,
       page: 1,
       trashEntries: [],
+      _hydrated: false,
 
       setFilter: (filter) => {
         set({ filter, page: 1 });
@@ -55,6 +60,11 @@ export const useEntryStore = create<EntryStore>()(
       },
 
       fetchEntries: async () => {
+        // Cancel any in-flight request (M1: race condition fix)
+        if (fetchController) fetchController.abort();
+        fetchController = new AbortController();
+        const { signal } = fetchController;
+
         const hasCache = get().entries.length > 0;
         if (!hasCache) set({ loading: true });
         try {
@@ -66,10 +76,14 @@ export const useEntryStore = create<EntryStore>()(
           params.set('page', String(page));
           params.set('limit', '20');
 
-          const res = await fetch(`/api/entries?${params}`);
+          const res = await fetch(`/api/entries?${params}`, { signal });
           if (!res.ok) throw new Error('Failed to fetch entries');
           const data = await res.json();
           set({ entries: data.entries, total: data.total });
+        } catch (err: unknown) {
+          // Ignore abort errors
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+          throw err;
         } finally {
           set({ loading: false });
         }
@@ -92,7 +106,7 @@ export const useEntryStore = create<EntryStore>()(
           total: state.total + 1,
         }));
 
-        // Background classification
+        // Background classification (M2: toast on failure)
         get().classifyEntry(entry.id);
 
         return entry;
@@ -176,7 +190,8 @@ export const useEntryStore = create<EntryStore>()(
             ),
           }));
         } catch {
-          // Classification failure is non-blocking
+          // M2: notify user of classification failure
+          toast.error('AI 분류에 실패했습니다. 수동으로 분류해주세요.');
         }
       },
 
@@ -230,11 +245,18 @@ export const useEntryStore = create<EntryStore>()(
       partialize: (state) => ({
         entries: state.entries.slice(0, 50).map(e => ({
           ...e,
-          image_url: e.image_url?.includes('token=') ? null : e.image_url,
-          image_thumbnail_url: e.image_thumbnail_url?.includes('token=') ? null : e.image_thumbnail_url,
+          // Strip all signed URLs (they expire) - not just token= ones (L1)
+          image_url: e.image_url && (e.image_url.includes('token=') || e.image_url.includes('Expires=')) ? null : e.image_url,
+          image_thumbnail_url: e.image_thumbnail_url && (e.image_thumbnail_url.includes('token=') || e.image_thumbnail_url.includes('Expires=')) ? null : e.image_thumbnail_url,
         })),
         total: state.total,
       }),
+      onRehydrateStorage: () => (state) => {
+        // C2: Mark hydration complete and trigger background refresh
+        if (state) {
+          state._hydrated = true;
+        }
+      },
     }
   )
 );

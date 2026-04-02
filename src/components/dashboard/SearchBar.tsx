@@ -1,48 +1,49 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
 import { Input } from '@/components/ui/input';
 import { Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function SearchBar() {
-  const { filter, setFilter } = useEntryStore();
+  const setFilter = useEntryStore((s) => s.setFilter);
+  const filter = useEntryStore((s) => s.filter);
   const [value, setValue] = useState(filter.query || (filter.tag ? `#${filter.tag}` : ''));
   const lastValueRef = useRef<string>('');
+  // H5: Capture latest filter in ref to avoid stale closure
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+
+  const applySearch = useCallback((trimmed: string) => {
+    if (trimmed.startsWith('#') && !trimmed.includes(' ')) {
+      const tag = trimmed.slice(1);
+      setFilter({ ...filterRef.current, tag: tag || undefined, query: undefined });
+    } else {
+      setFilter({ ...filterRef.current, query: trimmed || undefined, tag: undefined });
+    }
+  }, [setFilter]);
 
   useEffect(() => {
     const trimmed = value.trim();
     const timer = setTimeout(() => {
       if (trimmed === lastValueRef.current) return;
       lastValueRef.current = trimmed;
-
-      if (trimmed.startsWith('#') && !trimmed.includes(' ')) {
-        const tag = trimmed.slice(1);
-        setFilter({ ...filter, tag: tag || undefined, query: undefined });
-      } else {
-        setFilter({ ...filter, query: trimmed || undefined, tag: undefined });
-      }
+      applySearch(trimmed);
     }, 300);
     return () => clearTimeout(timer);
-  }, [value]);
+  }, [value, applySearch]);
 
   const handleSearch = () => {
     const trimmed = value.trim();
     lastValueRef.current = trimmed;
-
-    if (trimmed.startsWith('#') && !trimmed.includes(' ')) {
-      const tag = trimmed.slice(1);
-      setFilter({ ...filter, tag: tag || undefined, query: undefined });
-    } else {
-      setFilter({ ...filter, query: trimmed || undefined, tag: undefined });
-    }
+    applySearch(trimmed);
   };
 
   const handleClear = () => {
     setValue('');
     lastValueRef.current = '';
-    setFilter({ ...filter, query: undefined, tag: undefined });
+    setFilter({ ...filterRef.current, query: undefined, tag: undefined });
   };
 
   return (

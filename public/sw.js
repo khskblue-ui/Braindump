@@ -5,10 +5,10 @@ const STATIC_ASSETS = [
   '/manifest.json',
 ];
 
-// Install: cache static assets
+// Install: cache static assets into STATIC_CACHE (M6: consistent cache naming)
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
@@ -38,9 +38,16 @@ self.addEventListener('fetch', (event) => {
   // Skip navigation requests — let the server/proxy handle redirects
   if (request.mode === 'navigate') return;
 
-  // API calls and Supabase requests: Network Only (no caching)
+  // H6: API calls and Supabase requests: Network Only with offline fallback
   if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase.co')) {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      fetch(request).catch(() =>
+        new Response(
+          JSON.stringify({ error: '오프라인 상태입니다.' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
     return;
   }
 
@@ -67,12 +74,18 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) =>
         cache.match(request).then((cached) => {
-          const networkFetch = fetch(request).then((response) => {
-            if (response.ok) {
-              cache.put(request, response.clone());
-            }
-            return response;
-          });
+          const networkFetch = fetch(request)
+            .then((response) => {
+              if (response.ok) {
+                cache.put(request, response.clone());
+              }
+              return response;
+            })
+            .catch(() => {
+              // Offline fallback: return cached or error
+              if (cached) return cached;
+              return new Response('Offline', { status: 503 });
+            });
           return cached || networkFetch;
         })
       )
