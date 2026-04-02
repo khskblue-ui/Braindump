@@ -35,7 +35,7 @@ export interface UpdateEntryInput {
   category?: EntryCategory;
   tags?: string[];
   topic?: string | null;
-  summary?: string;
+  summary?: string | null;
   due_date?: string | null;
   priority?: EntryPriority | null;
   is_completed?: boolean;

@@ -1,4 +1,10 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'>
-    <rect width='192' height='192' rx='28.799999999999997' fill='#1A73E8'/>
-    <text x='50%' y='50%' text-anchor='middle' dominant-baseline='central' font-size='96'>🧠</text>
-  </svg>
+<svg viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg" width="192" height="192">
+  <rect width="192" height="192" rx="48" fill="#1A73E8" />
+  <path
+    d="M60 48h36c13.2 0 24 10.8 24 24 0 9-4.8 16.2-12 20.4 9.6 3.6 16.8 13.2 16.8 24.6 0 15-12 27-27 27H60V48z
+    M78 66v21h15c6 0 10.2-4.8 10.2-10.5S99 66 93 66H78z
+    M78 105V126h18c6.6 0 12-5.4 12-10.5s-5.4-10.5-12-10.5H78z"
+    fill="white"
+  />
+  <circle cx="138" cy="54" r="15" fill="#4FC3F7" />
+</svg>

@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, BookOpen, Trash2, Settings } from 'lucide-react';
+import { Logo } from '@/components/ui/Logo';
 
 export function TopHeader() {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container mx-auto px-4 max-w-3xl flex items-center h-12">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-          <span className="text-primary">🧠</span>
+          <Logo />
           <span>BrainDump</span>
         </Link>
       </div>

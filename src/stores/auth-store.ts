@@ -25,8 +25,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ initialized: true });
 
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    set({ user, loading: false });
+    const { data: { session } } = await supabase.auth.getSession();
+    set({ user: session?.user ?? null, loading: false });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       set({ user: session?.user ?? null });

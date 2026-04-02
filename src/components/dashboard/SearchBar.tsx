@@ -8,29 +8,41 @@ import { Button } from '@/components/ui/button';
 
 export function SearchBar() {
   const { filter, setFilter } = useEntryStore();
-  const [value, setValue] = useState(filter.query || '');
-  const lastQueryRef = useRef<string>('');
+  const [value, setValue] = useState(filter.query || (filter.tag ? `#${filter.tag}` : ''));
+  const lastValueRef = useRef<string>('');
 
   useEffect(() => {
     const trimmed = value.trim();
     const timer = setTimeout(() => {
-      if (trimmed === lastQueryRef.current) return;
-      lastQueryRef.current = trimmed;
-      setFilter({ ...filter, query: trimmed || undefined });
+      if (trimmed === lastValueRef.current) return;
+      lastValueRef.current = trimmed;
+
+      if (trimmed.startsWith('#') && !trimmed.includes(' ')) {
+        const tag = trimmed.slice(1);
+        setFilter({ ...filter, tag: tag || undefined, query: undefined });
+      } else {
+        setFilter({ ...filter, query: trimmed || undefined, tag: undefined });
+      }
     }, 300);
     return () => clearTimeout(timer);
   }, [value]);
 
   const handleSearch = () => {
     const trimmed = value.trim();
-    lastQueryRef.current = trimmed;
-    setFilter({ ...filter, query: trimmed || undefined });
+    lastValueRef.current = trimmed;
+
+    if (trimmed.startsWith('#') && !trimmed.includes(' ')) {
+      const tag = trimmed.slice(1);
+      setFilter({ ...filter, tag: tag || undefined, query: undefined });
+    } else {
+      setFilter({ ...filter, query: trimmed || undefined, tag: undefined });
+    }
   };
 
   const handleClear = () => {
     setValue('');
-    lastQueryRef.current = '';
-    setFilter({ ...filter, query: undefined });
+    lastValueRef.current = '';
+    setFilter({ ...filter, query: undefined, tag: undefined });
   };
 
   return (
@@ -38,7 +50,7 @@ export function SearchBar() {
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
         <Input
-          placeholder="검색..."
+          placeholder="검색... (#태그명으로 태그 검색)"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}

@@ -1,4 +1,5 @@
-const CACHE_NAME = 'braindump-v2';
+const CACHE_NAME = 'braindump-v3';
+const STATIC_CACHE = 'braindump-static-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -16,13 +17,17 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k !== CACHE_NAME && k !== STATIC_CACHE)
+          .map((k) => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
 });
 
-// Fetch: Network Only for API/Supabase, Cache First for static
+// Fetch: tiered caching strategy
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -39,17 +44,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: Cache First with network fallback
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        if (response.ok && url.origin === self.location.origin) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return response;
-      });
-    })
-  );
+  // Cache First for immutable hashed Next.js static assets
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then((cache) =>
+        cache.match(request).then((cached) => {
+          if (cached) return cached;
+          return fetch(request).then((response) => {
+            if (response.ok) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          });
+        })
+      )
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for other same-origin assets
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match(request).then((cached) => {
+          const networkFetch = fetch(request).then((response) => {
+            if (response.ok) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          });
+          return cached || networkFetch;
+        })
+      )
+    );
+  }
 });

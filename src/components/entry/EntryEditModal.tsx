@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -28,21 +28,28 @@ interface EntryEditModalProps {
 export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   const { updateEntry, deleteEntry } = useEntryStore();
   const [rawText, setRawText] = useState(entry.raw_text || '');
+  const [summary, setSummary] = useState(entry.summary || '');
   const [category, setCategory] = useState<EntryCategory>(entry.category);
   const [tagsInput, setTagsInput] = useState(entry.tags.join(', '));
   const [topic, setTopic] = useState(entry.topic || '');
   const [priority, setPriority] = useState<EntryPriority | ''>(entry.priority || '');
+  const [dueDate, setDueDate] = useState(
+    entry.due_date ? entry.due_date.slice(0, 16) : ''
+  );
   const [saving, setSaving] = useState(false);
+  const [reclassifying, setReclassifying] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await updateEntry(entry.id, {
         raw_text: rawText || undefined,
+        summary: summary || null,
         category,
         tags: tagsInput.split(',').map((t) => t.trim()).filter(Boolean),
         topic: topic || null,
         priority: (priority as EntryPriority) || null,
+        due_date: dueDate ? new Date(dueDate).toISOString() : null,
       });
       toast.success('수정되었습니다.');
       onClose();
@@ -64,6 +71,62 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
     }
   };
 
+  const handleReclassify = async () => {
+    setReclassifying(true);
+    try {
+      const res = await fetch('/api/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_id: entry.id }),
+      });
+      if (!res.ok) throw new Error();
+      const result = await res.json();
+      if (result.category) setCategory(result.category);
+      if (result.tags) setTagsInput(result.tags.join(', '));
+      if (result.topic) setTopic(result.topic);
+      if (result.priority) setPriority(result.priority);
+      if (result.summary) setSummary(result.summary);
+      // Also update the store
+      const classifyEntry = useEntryStore.getState().classifyEntry;
+      await classifyEntry(entry.id);
+      toast.success('AI가 재분류했습니다.');
+    } catch {
+      toast.error('재분류에 실패했습니다.');
+    } finally {
+      setReclassifying(false);
+    }
+  };
+
+  const handleRequestReminder = async () => {
+    if (!dueDate) {
+      toast.warning('먼저 날짜/시간을 설정해주세요.');
+      return;
+    }
+    if (!('Notification' in window)) {
+      toast.error('이 브라우저는 알림을 지원하지 않습니다.');
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      toast.error('알림 권한이 거부되었습니다.');
+      return;
+    }
+    const due = new Date(dueDate).getTime();
+    const now = Date.now();
+    const delay = due - now - 10 * 60 * 1000; // 10 minutes before
+    if (delay <= 0) {
+      toast.warning('일정이 이미 지났거나 10분 이내입니다.');
+      return;
+    }
+    setTimeout(() => {
+      new Notification('BrainDump 리마인드', {
+        body: summary || rawText || '일정이 곧 시작됩니다',
+        icon: '/icons/icon-192x192.png',
+      });
+    }, delay);
+    toast.success('리마인드가 설정되었습니다. (10분 전 알림)');
+  };
+
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -80,7 +143,6 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Image preview */}
           {entry.image_url && (
             <img
               src={entry.image_url}
@@ -89,7 +151,6 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             />
           )}
 
-          {/* Extracted text from image */}
           {entry.extracted_text && (
             <div className="p-3 bg-muted rounded-md">
               <p className="text-xs text-muted-foreground mb-1">AI 추출 텍스트</p>
@@ -97,7 +158,21 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             </div>
           )}
 
-          {/* Text */}
+          {/* AI Title / Summary */}
+          <div>
+            <label className="text-sm font-medium">제목 (AI 자동생성)</label>
+            <Input
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder="AI가 자동 생성한 제목입니다. 수정 가능합니다."
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              AI가 자동 생성한 제목입니다. 수정 가능합니다.
+            </p>
+          </div>
+
+          {/* Content */}
           <div>
             <label className="text-sm font-medium">내용</label>
             <Textarea
@@ -155,6 +230,30 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             </div>
           )}
 
+          {/* Due date + reminder (for schedule) */}
+          {category === 'schedule' && (
+            <div className="space-y-2">
+              <div>
+                <label className="text-sm font-medium">날짜/시간</label>
+                <Input
+                  type="datetime-local"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRequestReminder}
+                className="w-full text-xs"
+              >
+                🔔 리마인드 알림 설정 (10분 전)
+              </Button>
+            </div>
+          )}
+
           {/* Priority */}
           <div>
             <label className="text-sm font-medium">우선순위</label>
@@ -174,10 +273,21 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
 
           {/* Actions */}
           <div className="flex justify-between pt-2">
-            <Button variant="destructive" size="sm" onClick={handleDelete}>
-              <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
-              삭제
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="destructive" size="sm" onClick={handleDelete}>
+                <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
+                삭제
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReclassify}
+                disabled={reclassifying}
+              >
+                <Sparkles className="h-4 w-4 mr-1" strokeWidth={1.5} />
+                {reclassifying ? '분류 중...' : 'AI 재분류'}
+              </Button>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={onClose}>
                 취소

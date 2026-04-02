@@ -4,8 +4,8 @@ import { Entry, CATEGORY_MAP } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Square } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Check, Square, Clock } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 interface EntryCardProps {
@@ -92,6 +92,14 @@ export function EntryCard({ entry, onClick }: EntryCardProps) {
                     +{entry.tags.length - 3}
                   </span>
                 )}
+              </div>
+            )}
+
+            {/* Due date for schedule entries */}
+            {entry.category === 'schedule' && entry.due_date && (
+              <div className="flex items-center gap-1 text-xs text-orange-600">
+                <Clock className="h-3 w-3" />
+                <span>{format(new Date(entry.due_date), 'M월 d일 HH:mm', { locale: ko })}</span>
               </div>
             )}
           </div>

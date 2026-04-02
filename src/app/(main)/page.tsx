@@ -8,6 +8,7 @@ import { EntryCardSkeleton } from '@/components/cards/EntryCardSkeleton';
 import { CategoryTabs } from '@/components/dashboard/CategoryTabs';
 import { SearchBar } from '@/components/dashboard/SearchBar';
 import { EntryEditModal } from '@/components/entry/EntryEditModal';
+import { ReminderCheck } from '@/components/dashboard/ReminderCheck';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -102,6 +103,8 @@ export default function DashboardPage() {
           onClose={() => setSelectedEntry(null)}
         />
       )}
+
+      <ReminderCheck />
     </div>
   );
 }
