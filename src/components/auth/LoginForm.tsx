@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
+import { detectBrowserContext, type BrowserContext } from '@/lib/browser-detect';
+import { InstallGuideModal } from '@/components/landing/InstallGuideModal';
 import { Logo } from '@/components/ui/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { ExternalLink } from 'lucide-react';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -13,8 +16,16 @@ export function LoginForm() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [browserCtx, setBrowserCtx] = useState<BrowserContext | null>(null);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
 
   const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuthStore();
+
+  useEffect(() => {
+    setBrowserCtx(detectBrowserContext());
+  }, []);
+
+  const isInApp = browserCtx?.type === 'inapp' || browserCtx?.type === 'ios-non-safari';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +52,55 @@ export function LoginForm() {
       setError(err instanceof Error ? err.message : 'Google 로그인에 실패했습니다.');
     }
   };
+
+  // In-app browser: show external browser guide instead of login
+  if (isInApp) {
+    return (
+      <div className="w-full max-w-sm mx-auto space-y-8">
+        <div className="flex flex-col items-center gap-3">
+          <Logo className="h-14 w-14" />
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight">BrainDump</h1>
+          </div>
+        </div>
+
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+            <ExternalLink className="h-6 w-6 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">외부 브라우저에서 열어주세요</h2>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+              현재 브라우저에서는 로그인과 앱 설치가
+              <br />
+              정상적으로 작동하지 않습니다.
+            </p>
+          </div>
+
+          <div className="bg-blue-50 rounded-xl p-4 text-left space-y-2">
+            <p className="text-sm font-medium text-blue-900">앱으로 설치하면</p>
+            <ul className="text-xs text-blue-700 space-y-1">
+              <li>- 홈 화면에서 바로 실행</li>
+              <li>- 더 빠른 로딩 속도</li>
+              <li>- 음성 입력, 공유 등 모든 기능 지원</li>
+            </ul>
+          </div>
+
+          <Button
+            className="w-full h-11"
+            onClick={() => setInstallModalOpen(true)}
+          >
+            설치 방법 보기
+          </Button>
+        </div>
+
+        <InstallGuideModal
+          open={installModalOpen}
+          onClose={() => setInstallModalOpen(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-sm mx-auto space-y-8">
