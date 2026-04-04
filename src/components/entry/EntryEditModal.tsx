@@ -197,10 +197,15 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
           )}
 
           {entry.extracted_text && (
-            <div className="p-3 bg-muted rounded-md">
-              <p className="text-xs text-muted-foreground mb-1">AI 추출 텍스트</p>
-              <p className="text-sm">{entry.extracted_text}</p>
-            </div>
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer p-3 bg-muted rounded-md hover:bg-muted/80 transition-colors">
+                <span className="text-xs text-muted-foreground font-medium">AI 추출 텍스트</span>
+                <span className="text-xs text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <div className="p-3 bg-muted rounded-b-md border-t border-border/30 max-h-64 overflow-y-auto">
+                <p className="text-sm whitespace-pre-line leading-relaxed">{entry.extracted_text}</p>
+              </div>
+            </details>
           )}
 
           {/* AI Title / Summary */}

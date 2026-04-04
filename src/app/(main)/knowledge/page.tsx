@@ -69,7 +69,7 @@ export default function KnowledgePage() {
           <p className="text-sm mt-1">지식 관련 내용을 입력하면 AI가 주제별로 분류합니다</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {topics.map((topic) => (
             <Link key={topic.name} href={`/knowledge/${encodeURIComponent(topic.name)}`}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
