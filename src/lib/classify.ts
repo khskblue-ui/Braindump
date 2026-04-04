@@ -184,28 +184,48 @@ export async function classifyImage(
 }
 
 /**
- * Fix incorrect day-of-week in summary text by computing from actual dates.
- * AI often miscalculates day-of-week, so we correct patterns like "4월 17일 (목)" → "4월 17일 (금)"
+ * Fix summary date to match due_date.
+ * AI often puts a different date in summary vs due_date.
+ * If due_date exists, replace any "M월 D일 (요)" pattern in summary with the correct one from due_date.
+ * If no due_date, fix day-of-week from actual calendar.
  */
-function fixDayOfWeek(summary: string): string {
+function fixSummaryDate(summary: string, dueDate?: string): string {
   const days = ['일', '월', '화', '수', '목', '금', '토'];
-  // Match patterns: "M월 D일 (요)" or "M월 D일(요)"
-  return summary.replace(
-    /(\d{1,2})월\s*(\d{1,2})일\s*\(([일월화수목금토])\)/g,
-    (match, monthStr, dayStr, dayChar) => {
-      const month = parseInt(monthStr, 10);
-      const day = parseInt(dayStr, 10);
-      // Use current year in KST
-      const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-      let year = now.getFullYear();
-      // If the date is in the past, it might be next year
-      const testDate = new Date(year, month - 1, day);
-      if (testDate.getMonth() !== month - 1) return match; // invalid date
-      const correctDay = days[testDate.getDay()];
-      if (correctDay === dayChar) return match; // already correct
-      return `${month}월 ${day}일 (${correctDay})`;
+  const datePattern = /\d{1,2}월\s*\d{1,2}일\s*\([일월화수목금토]\)/g;
+
+  if (dueDate) {
+    // Parse due_date in KST
+    const d = new Date(dueDate);
+    if (!isNaN(d.getTime())) {
+      // Convert to KST
+      const kst = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const correctStr = `${kst.getMonth() + 1}월 ${kst.getDate()}일 (${days[kst.getDay()]})`;
+
+      // If summary has a date pattern, replace the LAST occurrence (usually the target date)
+      const matches = [...summary.matchAll(datePattern)];
+      if (matches.length > 0) {
+        // Replace last date occurrence with correct one from due_date
+        const lastMatch = matches[matches.length - 1];
+        return (
+          summary.slice(0, lastMatch.index!) +
+          correctStr +
+          summary.slice(lastMatch.index! + lastMatch[0].length)
+        );
+      }
     }
-  );
+  }
+
+  // Fallback: fix day-of-week based on actual calendar
+  return summary.replace(datePattern, (match) => {
+    const m = match.match(/(\d{1,2})월\s*(\d{1,2})일\s*\(([일월화수목금토])\)/);
+    if (!m) return match;
+    const month = parseInt(m[1], 10);
+    const day = parseInt(m[2], 10);
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const testDate = new Date(now.getFullYear(), month - 1, day);
+    if (testDate.getMonth() !== month - 1) return match;
+    return `${month}월 ${day}일 (${days[testDate.getDay()]})`;
+  });
 }
 
 function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
@@ -231,7 +251,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         tags: v.tags,
         topic: v.topic ?? undefined,
         extracted_text: v.extracted_text ?? undefined,
-        summary: v.summary ? fixDayOfWeek(v.summary) : undefined,
+        summary: v.summary ? fixSummaryDate(v.summary, v.due_date ?? undefined) : undefined,
         due_date: v.due_date ?? undefined,
         priority: v.priority ?? undefined,
         related_topics: v.related_topics,
@@ -247,7 +267,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         tags: v.tags,
         topic: v.topic ?? undefined,
         extracted_text: v.extracted_text ?? undefined,
-        summary: v.summary ? fixDayOfWeek(v.summary) : undefined,
+        summary: v.summary ? fixSummaryDate(v.summary, v.due_date ?? undefined) : undefined,
         due_date: v.due_date ?? undefined,
         priority: v.priority ?? undefined,
         related_topics: v.related_topics,
