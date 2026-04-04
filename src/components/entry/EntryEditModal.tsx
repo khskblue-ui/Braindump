@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Sparkles } from 'lucide-react';
+import { Trash2, Sparkles, Pin, PinOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -41,6 +41,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
   const [reminders, setReminders] = useState<ReminderOption[]>(entry.reminders || []);
+  const [isPinned, setIsPinned] = useState(entry.is_pinned || false);
   const [saving, setSaving] = useState(false);
   const [reclassifying, setReclassifying] = useState(false);
 
@@ -56,6 +57,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
         priority: (priority as EntryPriority) || null,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         reminders,
+        is_pinned: isPinned,
       });
       toast.success('수정되었습니다.');
       onClose();
@@ -386,6 +388,18 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             <Button variant="destructive" size="sm" onClick={handleDelete}>
               <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
               삭제
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPinned((prev) => !prev)}
+              className={isPinned ? 'text-blue-500 border-blue-300' : ''}
+            >
+              {isPinned ? (
+                <PinOff className="h-4 w-4" strokeWidth={1.5} />
+              ) : (
+                <Pin className="h-4 w-4" strokeWidth={1.5} />
+              )}
             </Button>
             <Button
               variant="outline"

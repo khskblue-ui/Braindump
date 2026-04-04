@@ -5,7 +5,7 @@ import { Entry, CATEGORY_MAP, hasCategory, primaryCategory } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Square, Clock, FileText } from 'lucide-react';
+import { Check, Square, Clock, FileText, Pin } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -22,9 +22,12 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98]"
+      className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98] relative"
       onClick={onClick}
     >
+      {entry.is_pinned && (
+        <Pin className="absolute top-2 right-2 h-3 w-3 text-blue-400" strokeWidth={2} />
+      )}
       <CardContent className="p-4">
         <div className="flex gap-3">
           {/* Thumbnail */}

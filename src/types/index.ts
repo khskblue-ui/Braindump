@@ -25,6 +25,7 @@ export interface Entry {
   due_date: string | null;
   priority: EntryPriority | null;
   is_completed: boolean;
+  is_pinned: boolean;
   reminders: ReminderOption[];
   input_type: EntryInputType;
   ai_metadata: Record<string, unknown>;
@@ -49,6 +50,7 @@ export interface UpdateEntryInput {
   due_date?: string | null;
   priority?: EntryPriority | null;
   is_completed?: boolean;
+  is_pinned?: boolean;
   deleted_at?: string | null;
   reminders?: ReminderOption[];
 }

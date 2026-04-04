@@ -9,6 +9,8 @@ import { EntryCardSkeleton } from '@/components/cards/EntryCardSkeleton';
 import { CategoryTabs } from '@/components/dashboard/CategoryTabs';
 import { SearchBar } from '@/components/dashboard/SearchBar';
 import { ReminderCheck } from '@/components/dashboard/ReminderCheck';
+import { TodayDashboard } from '@/components/dashboard/TodayDashboard';
+import { VisitReview } from '@/components/dashboard/VisitReview';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -93,6 +95,12 @@ export default function DashboardPage() {
     <div className="space-y-4">
       {/* Quick Capture */}
       <QuickCapture />
+
+      {/* Visit Review */}
+      <VisitReview />
+
+      {/* Today Dashboard */}
+      <TodayDashboard />
 
       {/* Filters */}
       <div className="space-y-3">

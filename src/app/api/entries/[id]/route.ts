@@ -41,7 +41,7 @@ export async function PATCH(
 
   // Allowlist only updatable fields
   const allowed: Record<string, unknown> = {};
-  const fields = ['raw_text', 'categories', 'tags', 'topic', 'summary', 'due_date', 'priority', 'is_completed', 'deleted_at', 'reminders'] as const;
+  const fields = ['raw_text', 'categories', 'tags', 'topic', 'summary', 'due_date', 'priority', 'is_completed', 'is_pinned', 'deleted_at', 'reminders'] as const;
   for (const key of fields) {
     if (key in body) allowed[key] = body[key];
   }

@@ -151,6 +151,14 @@ export async function GET(request: NextRequest) {
 
   let sortedEntries = entries ?? [];
 
+  // Pinned entries always appear first
+  if (sortedEntries.length > 0) {
+    sortedEntries = [
+      ...sortedEntries.filter((e) => e.is_pinned),
+      ...sortedEntries.filter((e) => !e.is_pinned),
+    ];
+  }
+
   // Schedule: upcoming (due_date ASC) first, no due_date in middle, past (due_date DESC) at end
   if (isSchedule && sortedEntries.length > 0) {
     const now = Date.now();

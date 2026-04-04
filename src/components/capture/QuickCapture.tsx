@@ -5,7 +5,7 @@ import { useEntryStore } from '@/stores/entry-store';
 import { ImageUpload } from './ImageUpload';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, ImagePlus, FileText } from 'lucide-react';
+import { Send, ImagePlus, FileText, Mic, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function QuickCapture() {
@@ -128,6 +128,77 @@ export function QuickCapture() {
   };
 
   const [isFocused, setIsFocused] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const interimRef = useRef('');
+
+  useEffect(() => {
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      setSpeechSupported(false);
+    }
+  }, []);
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'ko-KR';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      interimRef.current = '';
+      toast.info('음성 인식 중...');
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      let interim = '';
+      let finalChunk = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalChunk += result[0].transcript;
+        } else {
+          interim += result[0].transcript;
+        }
+      }
+      if (finalChunk) {
+        setText((prev) => prev + finalChunk);
+        interimRef.current = '';
+      } else {
+        interimRef.current = interim;
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (event: any) => {
+      if (event.error !== 'aborted') {
+        toast.error(`음성 인식 오류: ${event.error}`);
+      }
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      interimRef.current = '';
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
 
   return (
     <div className="space-y-2">
@@ -139,7 +210,7 @@ export function QuickCapture() {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder="생각을 입력하세요..."
-          className="min-h-[80px] pr-24 resize-none"
+          className="min-h-[80px] pr-32 resize-none"
           disabled={submitting || uploadingPdf}
         />
         <div className="absolute bottom-2 right-2 flex gap-1">
@@ -173,6 +244,24 @@ export function QuickCapture() {
           >
             <ImagePlus className="h-4 w-4" strokeWidth={1.5} />
           </Button>
+          {/* Mic */}
+          {speechSupported && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${isRecording ? 'text-red-500 animate-pulse' : ''}`}
+              onClick={toggleRecording}
+              disabled={submitting || uploadingPdf}
+              title={isRecording ? '음성 인식 중지' : '음성 입력'}
+            >
+              {isRecording ? (
+                <MicOff className="h-4 w-4" strokeWidth={1.5} />
+              ) : (
+                <Mic className="h-4 w-4" strokeWidth={1.5} />
+              )}
+            </Button>
+          )}
           {/* Send */}
           <Button
             type="button"
