@@ -17,6 +17,7 @@ interface EntryCardProps {
 // M4: React.memo to prevent unnecessary re-renders
 export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardProps) {
   const toggleComplete = useEntryStore((s) => s.toggleComplete);
+  const updateEntry = useEntryStore((s) => s.updateEntry);
   const primary = primaryCategory(entry);
   const cat = CATEGORY_MAP[primary];
 
@@ -25,9 +26,6 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
       className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98] relative"
       onClick={onClick}
     >
-      {entry.is_pinned && (
-        <Pin className="absolute top-2 right-2 h-3 w-3 text-blue-400" strokeWidth={2} />
-      )}
       <CardContent className="p-4">
         <div className="flex gap-3">
           {/* Thumbnail */}
@@ -61,12 +59,28 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
                   );
                 })}
               </div>
-              <span className="text-xs text-muted-foreground flex-shrink-0">
-                {formatDistanceToNow(new Date(entry.created_at), {
-                  addSuffix: true,
-                  locale: ko,
-                })}
-              </span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-xs text-muted-foreground">
+                  {formatDistanceToNow(new Date(entry.created_at), {
+                    addSuffix: true,
+                    locale: ko,
+                  })}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateEntry(entry.id, { is_pinned: !entry.is_pinned });
+                  }}
+                  className={`p-1.5 -mr-1 rounded transition-colors ${
+                    entry.is_pinned
+                      ? 'text-blue-400'
+                      : 'text-transparent hover:text-muted-foreground/50'
+                  }`}
+                  aria-label={entry.is_pinned ? '핀 해제' : '핀 고정'}
+                >
+                  <Pin className="h-3 w-3" strokeWidth={2} fill={entry.is_pinned ? 'currentColor' : 'none'} />
+                </button>
+              </div>
             </div>
 
             {/* Text content */}
@@ -80,7 +94,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
                     e.stopPropagation();
                     toggleComplete(entry.id);
                   }}
-                  className="mt-0.5 flex-shrink-0"
+                  className="flex-shrink-0 p-2 -m-2 flex items-center justify-center"
                 >
                   {entry.is_completed ? (
                     <Check className="h-4 w-4 text-green-500" strokeWidth={1.5} />

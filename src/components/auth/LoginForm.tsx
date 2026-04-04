@@ -170,6 +170,9 @@ export function LoginForm() {
           minLength={6}
           className="h-11"
         />
+        {isSignUp && (
+          <p className="text-xs text-muted-foreground">6자 이상 입력하세요</p>
+        )}
 
         {error && (
           <p className="text-sm text-destructive text-center">{error}</p>

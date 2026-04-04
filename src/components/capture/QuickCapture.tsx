@@ -18,6 +18,7 @@ export function QuickCapture() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const createEntry = useEntryStore((s) => s.createEntry);
+  const classifyEntry = useEntryStore((s) => s.classifyEntry);
   const fetchEntries = useEntryStore((s) => s.fetchEntries);
 
   // Auto-focus on mount
@@ -44,7 +45,7 @@ export function QuickCapture() {
     setSubmitting(true);
     try {
       const inputType = trimmedText && imageUrl ? 'mixed' : imageUrl ? 'image' : 'text';
-      await createEntry({
+      const entry = await createEntry({
         raw_text: trimmedText || undefined,
         image_url: imageUrl || undefined,
         image_thumbnail_url: thumbnailUrl || undefined,
@@ -55,8 +56,17 @@ export function QuickCapture() {
       setImageUrl(null);
       setThumbnailUrl(null);
       setShowImageUpload(false);
-      toast.success('저장되었습니다. AI가 분류 중...');
       textareaRef.current?.focus();
+
+      // Await classification and show result in toast
+      await classifyEntry(entry.id);
+      const classified = useEntryStore.getState().entries.find((e) => e.id === entry.id);
+      const cats = classified?.categories?.filter((c) => c !== 'inbox') ?? [];
+      if (cats.length > 0) {
+        toast.success(`저장 완료 — ${cats.join(', ')}`);
+      } else {
+        toast.success('저장되었습니다');
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '저장에 실패했습니다.';
       toast.error(msg);
@@ -266,6 +276,7 @@ export function QuickCapture() {
             onClick={() => pdfInputRef.current?.click()}
             disabled={uploadingPdf}
             title="PDF 업로드"
+            aria-label="PDF 업로드"
           >
             <FileText className="h-4 w-4" strokeWidth={1.5} />
           </Button>
@@ -277,6 +288,8 @@ export function QuickCapture() {
             className="h-8 w-8"
             onClick={() => setShowImageUpload(!showImageUpload)}
             disabled={uploadingPdf}
+            title="이미지 업로드"
+            aria-label="이미지 업로드"
           >
             <ImagePlus className="h-4 w-4" strokeWidth={1.5} />
           </Button>
@@ -290,6 +303,7 @@ export function QuickCapture() {
               onClick={toggleRecording}
               disabled={submitting || uploadingPdf}
               title={isRecording ? '음성 인식 중지' : '음성 입력'}
+              aria-label={isRecording ? '음성 인식 중지' : '음성 입력'}
             >
               {isRecording ? (
                 <MicOff className="h-4 w-4" strokeWidth={1.5} />
@@ -305,6 +319,8 @@ export function QuickCapture() {
             className="h-8 w-8"
             onClick={handleSubmit}
             disabled={submitting || uploadingPdf || (!text.trim() && !imageUrl)}
+            title="전송"
+            aria-label="전송"
           >
             <Send className="h-4 w-4" strokeWidth={1.5} />
           </Button>

@@ -119,9 +119,6 @@ export const useEntryStore = create<EntryStore>()(
           entries: [entry, ...state.entries],
         }));
 
-        // Background classification (M2: toast on failure)
-        get().classifyEntry(entry.id);
-
         return entry;
       },
 

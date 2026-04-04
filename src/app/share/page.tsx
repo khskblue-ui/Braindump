@@ -8,6 +8,7 @@ function ShareHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const createEntry = useEntryStore((s) => s.createEntry);
+  const classifyEntry = useEntryStore((s) => s.classifyEntry);
   const hasRun = useRef(false);
 
   useEffect(() => {
@@ -27,7 +28,9 @@ function ShareHandler() {
     }
 
     createEntry({ raw_text: combined, input_type: 'text' })
-      .then(() => {
+      .then((entry) => {
+        // Background classification (fire-and-forget)
+        classifyEntry(entry.id);
         router.replace('/home');
       })
       .catch(() => {

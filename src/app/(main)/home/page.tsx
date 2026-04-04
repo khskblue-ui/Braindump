@@ -97,14 +97,11 @@ export default function DashboardPage() {
       {/* Quick Capture */}
       <QuickCapture />
 
-      {/* PWA Install Prompt */}
-      <PwaInstallPrompt />
-
       {/* Visit Review */}
       <VisitReview />
 
       {/* Today Dashboard */}
-      <TodayDashboard />
+      <TodayDashboard onEntryClick={openEntry} />
 
       {/* Filters */}
       <div className="space-y-3">
@@ -177,6 +174,9 @@ export default function DashboardPage() {
           onClose={() => setSelectedEntry(null)}
         />
       )}
+
+      {/* PWA Install Prompt — one-time, shown after content */}
+      <PwaInstallPrompt />
 
       <ReminderCheck />
     </div>

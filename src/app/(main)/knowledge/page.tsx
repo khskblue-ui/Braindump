@@ -75,7 +75,7 @@ export default function KnowledgePage() {
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="space-y-1">
-                    <h3 className="font-medium">📚 {topic.name}</h3>
+                    <h3 className="font-medium flex items-center gap-1.5"><BookOpen className="h-4 w-4 shrink-0" strokeWidth={1.5} />{topic.name}</h3>
                     <p className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(topic.latest), {
                         addSuffix: true,

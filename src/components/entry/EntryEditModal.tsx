@@ -383,12 +383,9 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
         </div>
 
         {/* Footer with separator */}
-        <div className="flex justify-between px-4 py-3 border-t border-border/50 bg-muted/30 rounded-b-xl">
+        <div className="flex flex-col gap-2 px-4 py-3 border-t border-border/50 bg-muted/30 rounded-b-xl">
+          {/* Secondary actions row */}
           <div className="flex gap-2">
-            <Button variant="destructive" size="sm" onClick={handleDelete}>
-              <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
-              삭제
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -396,9 +393,9 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
               className={isPinned ? 'text-blue-500 border-blue-300' : ''}
             >
               {isPinned ? (
-                <PinOff className="h-4 w-4" strokeWidth={1.5} />
+                <><PinOff className="h-4 w-4 mr-1" strokeWidth={1.5} />핀 해제</>
               ) : (
-                <Pin className="h-4 w-4" strokeWidth={1.5} />
+                <><Pin className="h-4 w-4 mr-1" strokeWidth={1.5} />핀 고정</>
               )}
             </Button>
             <Button
@@ -411,13 +408,20 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
               {reclassifying ? '분류 중...' : 'AI 재분류'}
             </Button>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>
-              취소
+          {/* Primary actions row: destructive far left, confirm far right */}
+          <div className="flex justify-between">
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
+              삭제
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? '저장 중...' : '저장'}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={onClose}>
+                취소
+              </Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

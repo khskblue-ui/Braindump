@@ -31,9 +31,13 @@ function formatDueTime(due_date: string): string {
   return format(d, 'HH:mm');
 }
 
-export function TodayDashboard() {
+interface TodayDashboardProps {
+  onEntryClick?: (entry: Entry) => void;
+}
+
+export function TodayDashboard({ onEntryClick }: TodayDashboardProps) {
   const entries = useEntryStore((s) => s.entries);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const today = startOfDay(new Date());
 
@@ -118,7 +122,11 @@ export function TodayDashboard() {
           {overdue.map((entry) => (
             <div
               key={`overdue-${entry.id}`}
-              className="flex items-center gap-2 px-4 py-2"
+              className={`flex items-center gap-2 px-4 py-2${onEntryClick ? ' cursor-pointer hover:bg-muted/50' : ''}`}
+              onClick={() => onEntryClick?.(entry)}
+              role={onEntryClick ? 'button' : undefined}
+              tabIndex={onEntryClick ? 0 : undefined}
+              onKeyDown={onEntryClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onEntryClick(entry); } : undefined}
             >
               <span
                 className="h-2 w-2 flex-shrink-0 rounded-full"
@@ -140,7 +148,11 @@ export function TodayDashboard() {
             return (
               <div
                 key={`today-${entry.id}`}
-                className="flex items-center gap-2 px-4 py-2"
+                className={`flex items-center gap-2 px-4 py-2${onEntryClick ? ' cursor-pointer hover:bg-muted/50' : ''}`}
+                onClick={() => onEntryClick?.(entry)}
+                role={onEntryClick ? 'button' : undefined}
+                tabIndex={onEntryClick ? 0 : undefined}
+                onKeyDown={onEntryClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onEntryClick(entry); } : undefined}
               >
                 <span
                   className="h-2 w-2 flex-shrink-0 rounded-full"
@@ -160,7 +172,11 @@ export function TodayDashboard() {
           {highPriority.map((entry) => (
             <div
               key={`hp-${entry.id}`}
-              className="flex items-center gap-2 px-4 py-2"
+              className={`flex items-center gap-2 px-4 py-2${onEntryClick ? ' cursor-pointer hover:bg-muted/50' : ''}`}
+              onClick={() => onEntryClick?.(entry)}
+              role={onEntryClick ? 'button' : undefined}
+              tabIndex={onEntryClick ? 0 : undefined}
+              onKeyDown={onEntryClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onEntryClick(entry); } : undefined}
             >
               <span
                 className="h-2 w-2 flex-shrink-0 rounded-full"
