@@ -34,9 +34,12 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   const [tagsInput, setTagsInput] = useState(entry.tags.join(', '));
   const [topic, setTopic] = useState(entry.topic || '');
   const [priority, setPriority] = useState<EntryPriority | ''>(entry.priority || '');
-  const [dueDate, setDueDate] = useState(
-    entry.due_date ? entry.due_date.slice(0, 16) : ''
-  );
+  const [dueDate, setDueDate] = useState(() => {
+    if (!entry.due_date) return '';
+    const d = new Date(entry.due_date);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
   const [reminders, setReminders] = useState<ReminderOption[]>(entry.reminders || []);
   const [saving, setSaving] = useState(false);
   const [reclassifying, setReclassifying] = useState(false);
@@ -92,7 +95,11 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
       if (result.topic) setTopic(result.topic);
       if (result.priority) setPriority(result.priority);
       if (result.summary) setSummary(result.summary);
-      if (result.due_date) setDueDate(result.due_date.slice(0, 16));
+      if (result.due_date) {
+        const d = new Date(result.due_date);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        setDueDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      }
 
       // Update store directly (no second API call)
       useEntryStore.setState((state) => ({
