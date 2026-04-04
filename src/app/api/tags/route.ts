@@ -9,7 +9,8 @@ export async function GET() {
   const { data: entries } = await supabase
     .from('entries')
     .select('tags')
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .is('deleted_at', null);
 
   const tagCounts = new Map<string, number>();
   for (const entry of entries || []) {

@@ -16,6 +16,7 @@ export async function GET(
     .from('entries')
     .select('*')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('topic', decodedTopic)
     .order('created_at', { ascending: false });
 

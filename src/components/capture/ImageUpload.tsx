@@ -33,7 +33,8 @@ export function ImageUpload({ onUploaded, onRemove, currentUrl }: ImageUploadPro
 
     window.addEventListener('paste', handler);
     return () => window.removeEventListener('paste', handler);
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const uploadFile = async (file: File) => {
     // Validate

@@ -130,8 +130,11 @@ export async function GET(request: NextRequest) {
     const allEntries = [...merged.values()]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    const hasMore = allEntries.length > limit;
-    const trimmedEntries = hasMore ? allEntries.slice(0, limit) : allEntries;
+    // hasMore: true only if either sub-query returned a full page (limit+1 rows from inclusive range)
+    const textFull = (textResult.data?.length ?? 0) > limit;
+    const tagFull = (tagResult.data?.length ?? 0) > limit;
+    const hasMore = textFull || tagFull;
+    const trimmedEntries = allEntries.slice(0, limit);
     const entriesWithSignedUrls = trimmedEntries.length > 0 ? await attachSignedUrls(supabase, trimmedEntries) : [];
 
     return NextResponse.json({ entries: entriesWithSignedUrls, hasMore, page });
