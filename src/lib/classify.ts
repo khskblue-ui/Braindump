@@ -44,25 +44,18 @@ function buildSystemPrompt(): string {
 - schedule: 특정 날짜/시간이 있는 항목 (시한형)
 - inbox: 판단 불가 (미분류)
 
-## 복합 입력 분할 규칙
+## 복수 카테고리 규칙
 
-사용자 입력에 서로 독립적인 항목이 여러 개 포함된 경우, 분할하여 분류하세요.
+하나의 입력이 여러 성격을 가질 수 있습니다. 해당하는 카테고리를 모두 포함하세요.
+- 첫 번째 값이 가장 지배적인 카테고리 (primary)
+- 최대 3개까지
+- 단일 성격이면 1개만
 
-분할 기준:
-- 한 항목을 삭제해도 나머지 항목의 의미가 보존되는 경우에만 분할
-- 최대 3개까지만 분할
-- 하나의 문맥으로 연결된 내용은 분할하지 않음
-
-분할 안 하는 예:
-- "내일 미팅 자료 준비해야 함" → 1개 (미팅과 자료 준비는 하나의 문맥)
-- "블로그 글 주제 정해서 초안 쓰기" → 1개 (연쇄 행동)
-
-분할하는 예:
-- "내일 3시 미팅, 프레젠테이션 준비, 다크모드 아이디어" → 3개
-- "우유 사기, 주말에 부산 여행 알아보기" → 2개
-
-분할이 필요하면 additional_entries 배열에 추가 항목을 넣으세요.
-분할이 불필요하면 additional_entries를 생략하세요.
+예:
+- "내일 3시 미팅 자료 준비" → ["schedule", "task"] (일정이면서 할 일)
+- "블로그 글 써야겠다" → ["idea"] (아직 열린 생각)
+- "보고서 제출하기" → ["task"] (단일 할 일)
+- "회의에서 예산 500만원 확정, 다음주 수요일까지 보고서 제출" → ["schedule", "task", "memo"]
 
 ## 날짜 해석 규칙
 - "다음주", "차주"는 오늘 기준 다음 월요일이 시작하는 주를 의미
@@ -71,7 +64,7 @@ function buildSystemPrompt(): string {
 - "다다음주"는 다음주의 다음 주
 - 요일만 언급된 경우 오늘 포함 가장 가까운 미래의 해당 요일
 - 특정 월/일만 있고 연도가 없으면 가장 가까운 미래의 해당 날짜
-- schedule인 경우 summary에 반드시 요일 포함. 예: "5월 15일 (목) 디자인팀 미팅"
+- schedule이 포함된 경우 summary에 반드시 요일 포함. 예: "5월 15일 (목) 디자인팀 미팅"
 
 ## summary 작성 규칙
 - 문장형이 아닌 명사구/키워드 중심의 간결체로 작성
@@ -81,20 +74,19 @@ function buildSystemPrompt(): string {
 
 반드시 JSON만 반환하세요. 다른 텍스트 없이:
 {
-  "category": "task" | "idea" | "memo" | "knowledge" | "schedule" | "inbox",
+  "categories": ["primary", "secondary"],
   "tags": ["태그1", "태그2"],
-  "topic": "주제명 (knowledge인 경우만, 그 외 null)",
+  "topic": "주제명 (knowledge 포함 시만, 그 외 null)",
   "extracted_text": "이미지에서 추출한 텍스트 (이미지인 경우만, 그 외 null)",
   "summary": "간결한 명사구 제목",
-  "due_date": "ISO8601 날짜 (schedule인 경우만, 그 외 null)",
+  "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null)",
   "priority": "high" | "medium" | "low" | null,
-  "related_topics": ["관련 주제"],
-  "additional_entries": [동일 구조 객체] (분할 시에만, 생략 가능)
+  "related_topics": ["관련 주제"]
 }`;
 }
 
-const classifyItemSchema = z.object({
-  category: z.enum(['task', 'idea', 'memo', 'knowledge', 'schedule', 'inbox']),
+const classifySchema = z.object({
+  categories: z.array(z.enum(['task', 'idea', 'memo', 'knowledge', 'schedule', 'inbox'])).min(1).max(3),
   tags: z.array(z.string()).default([]),
   topic: z.string().nullable().optional(),
   extracted_text: z.string().nullable().optional(),
@@ -104,22 +96,17 @@ const classifyItemSchema = z.object({
   related_topics: z.array(z.string()).optional(),
 });
 
-const classifySchema = classifyItemSchema.extend({
-  additional_entries: z.array(classifyItemSchema).max(3).optional(),
+// Legacy schema: accept old single-category format and convert
+const legacyCategorySchema = z.object({
+  category: z.enum(['task', 'idea', 'memo', 'knowledge', 'schedule', 'inbox']),
+  tags: z.array(z.string()).default([]),
+  topic: z.string().nullable().optional(),
+  extracted_text: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
+  due_date: z.string().nullable().optional(),
+  priority: z.enum(['high', 'medium', 'low']).nullable().optional(),
+  related_topics: z.array(z.string()).optional(),
 });
-
-function toResultItem(validated: z.infer<typeof classifyItemSchema>) {
-  return {
-    category: validated.category,
-    tags: validated.tags,
-    topic: validated.topic ?? undefined,
-    extracted_text: validated.extracted_text ?? undefined,
-    summary: validated.summary ?? undefined,
-    due_date: validated.due_date ?? undefined,
-    priority: validated.priority ?? undefined,
-    related_topics: validated.related_topics,
-  };
-}
 
 export async function classifyText(text: string, options?: { maxTokens?: number }): Promise<ClassifyResult> {
   const response = await client.messages.create({
@@ -166,23 +153,48 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
     .map((block) => block.text)
     .join('');
 
-  // Extract JSON from response (handle markdown code blocks)
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    return { category: 'inbox', tags: [] };
+    return { categories: ['inbox'], tags: [] };
   }
 
   try {
     const parsed = JSON.parse(jsonMatch[0]);
-    const validated = classifySchema.parse(parsed);
-    const result: ClassifyResult = toResultItem(validated);
 
-    if (validated.additional_entries && validated.additional_entries.length > 0) {
-      result.additional_entries = validated.additional_entries.map(toResultItem);
+    // Try new format first (categories array)
+    const newResult = classifySchema.safeParse(parsed);
+    if (newResult.success) {
+      const v = newResult.data;
+      return {
+        categories: v.categories,
+        tags: v.tags,
+        topic: v.topic ?? undefined,
+        extracted_text: v.extracted_text ?? undefined,
+        summary: v.summary ?? undefined,
+        due_date: v.due_date ?? undefined,
+        priority: v.priority ?? undefined,
+        related_topics: v.related_topics,
+      };
     }
 
-    return result;
+    // Fallback: old single-category format
+    const legacyResult = legacyCategorySchema.safeParse(parsed);
+    if (legacyResult.success) {
+      const v = legacyResult.data;
+      return {
+        categories: [v.category],
+        tags: v.tags,
+        topic: v.topic ?? undefined,
+        extracted_text: v.extracted_text ?? undefined,
+        summary: v.summary ?? undefined,
+        due_date: v.due_date ?? undefined,
+        priority: v.priority ?? undefined,
+        related_topics: v.related_topics,
+      };
+    }
+
+    return { categories: ['inbox'], tags: [] };
   } catch {
-    return { category: 'inbox', tags: [] };
+    return { categories: ['inbox'], tags: [] };
   }
 }

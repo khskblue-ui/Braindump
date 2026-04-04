@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         image_url: image_url || null,
         image_thumbnail_url: image_thumbnail_url || null,
         input_type: input_type || 'text',
-        category: 'inbox',
+        categories: ['inbox'],
       })
       .select()
       .single();
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
   dbQuery = dbQuery.order('created_at', { ascending: false });
 
   if (category && category !== 'all') {
-    dbQuery = dbQuery.eq('category', category);
+    dbQuery = dbQuery.contains('categories', [category]);
   }
 
   if (tag) {
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit);
 
     if (category && category !== 'all') {
-      textQuery.eq('category', category);
+      textQuery.contains('categories', [category]);
     }
 
     const tagSearchQuery = supabase
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit);
 
     if (category && category !== 'all') {
-      tagSearchQuery.eq('category', category);
+      tagSearchQuery.contains('categories', [category]);
     }
 
     const [textResult, tagResult] = await Promise.all([textQuery, tagSearchQuery]);

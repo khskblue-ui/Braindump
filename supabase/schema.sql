@@ -3,7 +3,7 @@
 
 -- 1. Enums
 CREATE TYPE entry_category AS ENUM ('task', 'idea', 'memo', 'knowledge', 'schedule', 'inbox');
-CREATE TYPE entry_input_type AS ENUM ('text', 'image', 'mixed');
+CREATE TYPE entry_input_type AS ENUM ('text', 'image', 'mixed', 'pdf');
 CREATE TYPE entry_priority AS ENUM ('high', 'medium', 'low');
 
 -- 2. Entries table
@@ -14,13 +14,14 @@ CREATE TABLE entries (
   image_url           TEXT,
   image_thumbnail_url TEXT,
   extracted_text      TEXT,
-  category            entry_category NOT NULL DEFAULT 'inbox',
+  categories          TEXT[] NOT NULL DEFAULT '{inbox}',
   tags                TEXT[] DEFAULT '{}',
   topic               TEXT,
   summary             TEXT,
   due_date            TIMESTAMPTZ,
   priority            entry_priority,
   is_completed        BOOLEAN DEFAULT FALSE,
+  reminders           TEXT[] DEFAULT '{}',
   input_type          entry_input_type NOT NULL DEFAULT 'text',
   ai_metadata         JSONB DEFAULT '{}',
   created_at          TIMESTAMPTZ DEFAULT now(),
@@ -29,11 +30,11 @@ CREATE TABLE entries (
 
 -- 3. Indexes
 CREATE INDEX idx_entries_user_id ON entries(user_id);
-CREATE INDEX idx_entries_category ON entries(user_id, category);
+CREATE INDEX idx_entries_categories ON entries USING GIN(categories);
 CREATE INDEX idx_entries_topic ON entries(user_id, topic) WHERE topic IS NOT NULL;
 CREATE INDEX idx_entries_created_at ON entries(user_id, created_at DESC);
 CREATE INDEX idx_entries_tags ON entries USING GIN(tags);
-CREATE INDEX idx_entries_completed ON entries(user_id, is_completed) WHERE category = 'task';
+CREATE INDEX idx_entries_completed ON entries(user_id, is_completed) WHERE 'task' = ANY(categories);
 
 -- 4. Full-text search (simple config for Korean support)
 ALTER TABLE entries ADD COLUMN fts tsvector

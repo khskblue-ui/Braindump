@@ -12,6 +12,7 @@ import { ReminderCheck } from '@/components/dashboard/ReminderCheck';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { hasCategory } from '@/types';
 import type { Entry } from '@/types';
 
 // Lazy load heavy modal components (performance: reduce initial bundle)
@@ -45,7 +46,7 @@ export default function DashboardPage() {
   const filter = useEntryStore((s) => s.filter);
   // M3: useMemo to avoid recalculating on every render
   const inboxCount = useMemo(
-    () => entries.filter((e) => e.category === 'inbox').length,
+    () => entries.filter((e) => hasCategory(e, 'inbox')).length,
     [entries]
   );
 

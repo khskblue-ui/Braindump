@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Entry, CATEGORY_MAP } from '@/types';
+import { Entry, CATEGORY_MAP, hasCategory, primaryCategory } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,8 @@ interface EntryCardProps {
 // M4: React.memo to prevent unnecessary re-renders
 export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardProps) {
   const toggleComplete = useEntryStore((s) => s.toggleComplete);
-  const cat = CATEGORY_MAP[entry.category];
+  const primary = primaryCategory(entry);
+  const cat = CATEGORY_MAP[primary];
 
   return (
     <Card
@@ -40,15 +41,23 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
           <div className="flex-1 min-w-0 space-y-1.5">
             {/* Category + time */}
             <div className="flex items-center justify-between gap-2">
-              <span
-                className="text-xs font-medium px-2 py-0.5 rounded-md"
-                style={{
-                  backgroundColor: cat?.color ? `${cat.color}18` : undefined,
-                  color: cat?.color,
-                }}
-              >
-                {cat?.label}
-              </span>
+              <div className="flex gap-1">
+                {entry.categories.map((c) => {
+                  const catInfo = CATEGORY_MAP[c];
+                  return (
+                    <span
+                      key={c}
+                      className="text-xs font-medium px-2 py-0.5 rounded-md"
+                      style={{
+                        backgroundColor: catInfo?.color ? `${catInfo.color}18` : undefined,
+                        color: catInfo?.color,
+                      }}
+                    >
+                      {catInfo?.label}
+                    </span>
+                  );
+                })}
+              </div>
               <span className="text-xs text-muted-foreground flex-shrink-0">
                 {formatDistanceToNow(new Date(entry.created_at), {
                   addSuffix: true,
@@ -62,7 +71,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
               {entry.input_type === 'pdf' && (
                 <FileText className="h-4 w-4 mt-0.5 flex-shrink-0 text-red-500" strokeWidth={1.5} />
               )}
-              {entry.category === 'task' && entry.input_type !== 'pdf' && (
+              {hasCategory(entry, 'task') && entry.input_type !== 'pdf' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -103,7 +112,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
             )}
 
             {/* Due date for schedule entries */}
-            {entry.category === 'schedule' && entry.due_date && (
+            {hasCategory(entry, 'schedule') && entry.due_date && (
               <div className="flex items-center gap-1 text-xs text-orange-600">
                 <Clock className="h-3 w-3" />
                 <span>{format(new Date(entry.due_date), 'M월 d일 (EEE) HH:mm', { locale: ko })}</span>

@@ -19,7 +19,7 @@ export async function PATCH() {
     .from('entries')
     .select('*')
     .eq('user_id', user.id)
-    .eq('category', 'inbox')
+    .contains('categories', ['inbox'])
     .order('created_at', { ascending: false });
 
   if (error || !inboxEntries?.length) {
@@ -88,12 +88,12 @@ async function classifySingleEntry(
   }
 
   const topic =
-    result.category === 'knowledge' && result.topic
+    result.categories.includes('knowledge') && result.topic
       ? result.topic.trim().toLowerCase()
       : null;
 
   const updateData: Record<string, unknown> = {
-    category: result.category,
+    categories: result.categories,
     tags: result.tags,
     summary: result.summary || null,
     priority: result.priority || null,
@@ -109,7 +109,7 @@ async function classifySingleEntry(
     .eq('id', entry.id as string)
     .eq('user_id', user.id);
 
-  return result.category;
+  return result.categories[0];
 }
 
 // POST: 단건 분류
@@ -162,12 +162,12 @@ export async function POST(request: NextRequest) {
     }
 
     const topic =
-      result.category === 'knowledge' && result.topic
+      result.categories.includes('knowledge') && result.topic
         ? result.topic.trim().toLowerCase()
         : null;
 
     const updateData: Record<string, unknown> = {
-      category: result.category,
+      categories: result.categories,
       tags: result.tags,
       summary: result.summary || null,
       priority: result.priority || null,
@@ -188,41 +188,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '분류 결과 저장에 실패했습니다.' }, { status: 500 });
     }
 
-    // Handle multi-card split: insert additional entries if AI detected independent items
-    const additionalEntries: Array<Record<string, unknown>> = [];
-    if (result.additional_entries && result.additional_entries.length > 0) {
-      for (const item of result.additional_entries.slice(0, 3)) {
-        const addTopic = item.category === 'knowledge' && item.topic
-          ? item.topic.trim().toLowerCase() : null;
-        const insertData: Record<string, unknown> = {
-          user_id: user.id,
-          raw_text: item.summary || null,
-          input_type: 'text',
-          category: item.category,
-          tags: item.tags || [],
-          summary: item.summary || null,
-          priority: item.priority || null,
-          ai_metadata: item,
-        };
-        if (addTopic) insertData.topic = addTopic;
-        if (item.due_date) insertData.due_date = item.due_date;
-
-        const { data: newEntry, error: insertError } = await supabase
-          .from('entries')
-          .insert(insertData)
-          .select()
-          .single();
-
-        if (!insertError && newEntry) {
-          additionalEntries.push(newEntry);
-        }
-      }
-    }
-
-    return NextResponse.json({
-      ...result,
-      additional_entries_created: additionalEntries.length > 0 ? additionalEntries : undefined,
-    });
+    return NextResponse.json(result);
   } catch (err) {
     console.error('Classification error:', err);
     return NextResponse.json(

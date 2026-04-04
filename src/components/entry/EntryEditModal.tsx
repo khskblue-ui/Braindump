@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
 import type { Entry, EntryCategory, EntryPriority, ReminderOption } from '@/types';
-import { CATEGORIES, REMINDER_OPTIONS } from '@/types';
+import { CATEGORIES, REMINDER_OPTIONS, hasCategory } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   const { updateEntry, deleteEntry } = useEntryStore();
   const [rawText, setRawText] = useState(entry.raw_text || '');
   const [summary, setSummary] = useState(entry.summary || '');
-  const [category, setCategory] = useState<EntryCategory>(entry.category);
+  const [categories, setCategories] = useState<EntryCategory[]>(entry.categories);
   const [tagsInput, setTagsInput] = useState(entry.tags.join(', '));
   const [topic, setTopic] = useState(entry.topic || '');
   const [priority, setPriority] = useState<EntryPriority | ''>(entry.priority || '');
@@ -50,7 +50,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
       await updateEntry(entry.id, {
         raw_text: rawText || undefined,
         summary: summary || null,
-        category,
+        categories,
         tags: tagsInput.split(',').map((t) => t.trim()).filter(Boolean),
         topic: topic || null,
         priority: (priority as EntryPriority) || null,
@@ -90,7 +90,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
       const result = await res.json();
 
       // Update local modal state
-      if (result.category) setCategory(result.category);
+      if (result.categories) setCategories(result.categories);
       if (result.tags) setTagsInput(result.tags.join(', '));
       if (result.topic) setTopic(result.topic);
       if (result.priority) setPriority(result.priority);
@@ -107,7 +107,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
           e.id === entry.id
             ? {
                 ...e,
-                category: result.category ?? e.category,
+                categories: result.categories ?? e.categories,
                 tags: result.tags ?? e.tags,
                 topic: result.topic ?? e.topic,
                 summary: result.summary ?? e.summary,
@@ -132,8 +132,8 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
     low: { label: '낮음', color: '#22C55E' },
   } as const;
 
-  const showDueDate = category === 'task' || category === 'schedule';
-  const dueDateLabel = category === 'schedule' ? '날짜/시간' : '마감일 (선택)';
+  const showDueDate = categories.includes('task') || categories.includes('schedule');
+  const dueDateLabel = categories.includes('schedule') ? '날짜/시간' : '마감일 (선택)';
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
@@ -205,28 +205,40 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
           <div>
             <label className="text-sm font-medium">카테고리</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.value}
-                  type="button"
-                  onClick={() => setCategory(cat.value)}
-                  className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all ${
-                    category === cat.value
-                      ? ''
-                      : 'opacity-60 hover:opacity-100'
-                  }`}
-                  style={{
-                    backgroundColor: `${cat.color}18`,
-                    color: cat.color,
-                    outlineColor: category === cat.value ? cat.color : undefined,
-                    outlineWidth: category === cat.value ? '2px' : undefined,
-                    outlineOffset: '1px',
-                    outlineStyle: category === cat.value ? 'solid' : undefined,
-                  }}
-                >
-                  {cat.label}
-                </button>
-              ))}
+              {CATEGORIES.map((cat) => {
+                const isSelected = categories.includes(cat.value);
+                return (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        // Don't allow empty categories
+                        if (categories.length > 1) {
+                          setCategories(categories.filter((c) => c !== cat.value));
+                        }
+                      } else {
+                        setCategories([...categories, cat.value]);
+                      }
+                    }}
+                    className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all ${
+                      isSelected
+                        ? ''
+                        : 'opacity-60 hover:opacity-100'
+                    }`}
+                    style={{
+                      backgroundColor: `${cat.color}18`,
+                      color: cat.color,
+                      outlineColor: isSelected ? cat.color : undefined,
+                      outlineWidth: isSelected ? '2px' : undefined,
+                      outlineOffset: '1px',
+                      outlineStyle: isSelected ? 'solid' : undefined,
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -242,7 +254,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
           </div>
 
           {/* Topic (for knowledge) */}
-          {category === 'knowledge' && (
+          {categories.includes('knowledge') && (
             <div>
               <label className="text-sm font-medium">주제</label>
               <Input

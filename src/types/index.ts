@@ -18,7 +18,7 @@ export interface Entry {
   image_url: string | null;
   image_thumbnail_url: string | null;
   extracted_text: string | null;
-  category: EntryCategory;
+  categories: EntryCategory[];
   tags: string[];
   topic: string | null;
   summary: string | null;
@@ -42,7 +42,7 @@ export interface CreateEntryInput {
 
 export interface UpdateEntryInput {
   raw_text?: string;
-  category?: EntryCategory;
+  categories?: EntryCategory[];
   tags?: string[];
   topic?: string | null;
   summary?: string | null;
@@ -53,8 +53,8 @@ export interface UpdateEntryInput {
   reminders?: ReminderOption[];
 }
 
-export interface ClassifyResultItem {
-  category: EntryCategory;
+export interface ClassifyResult {
+  categories: EntryCategory[];
   tags: string[];
   topic?: string;
   extracted_text?: string;
@@ -62,10 +62,6 @@ export interface ClassifyResultItem {
   due_date?: string;
   priority?: EntryPriority;
   related_topics?: string[];
-}
-
-export interface ClassifyResult extends ClassifyResultItem {
-  additional_entries?: ClassifyResultItem[];
 }
 
 export interface TopicInfo {
@@ -91,3 +87,13 @@ export const CATEGORIES: { value: EntryCategory; label: string; color: string }[
 export const CATEGORY_MAP = Object.fromEntries(
   CATEGORIES.map((c) => [c.value, c])
 ) as Record<EntryCategory, (typeof CATEGORIES)[number]>;
+
+/** Get the primary (first) category of an entry */
+export function primaryCategory(entry: { categories: EntryCategory[] }): EntryCategory {
+  return entry.categories[0] || 'inbox';
+}
+
+/** Check if entry belongs to a category */
+export function hasCategory(entry: { categories: EntryCategory[] }, cat: EntryCategory): boolean {
+  return entry.categories.includes(cat);
+}

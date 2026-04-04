@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
 import type { Entry } from '@/types';
-import { CATEGORY_MAP } from '@/types';
+import { CATEGORY_MAP, hasCategory } from '@/types';
 import {
   Dialog,
   DialogContentFullscreen,
@@ -29,7 +29,7 @@ export function EntryViewerModal({ entry, open, onClose, onEdit }: EntryViewerMo
   const [reclassifying, setReclassifying] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const cat = CATEGORY_MAP[entry.category];
+  // Multi-category display handled below
   const displayText = entry.extracted_text || entry.raw_text || '';
 
   // Split pages by double newline (pages separated by \n\n in extraction)
@@ -64,7 +64,7 @@ export function EntryViewerModal({ entry, open, onClose, onEdit }: EntryViewerMo
           e.id === entry.id
             ? {
                 ...e,
-                category: result.category ?? e.category,
+                categories: result.categories ?? e.categories,
                 tags: result.tags ?? e.tags,
                 topic: result.topic ?? e.topic,
                 summary: result.summary ?? e.summary,
@@ -114,15 +114,21 @@ export function EntryViewerModal({ entry, open, onClose, onEdit }: EntryViewerMo
 
           {/* Meta row */}
           <div className="flex items-center gap-2 px-4 pb-2.5 overflow-x-auto">
-            <span
-              className="text-xs font-medium px-2 py-0.5 rounded-md flex-shrink-0"
-              style={{
-                backgroundColor: cat?.color ? `${cat.color}18` : undefined,
-                color: cat?.color,
-              }}
-            >
-              {cat?.label}
-            </span>
+            {entry.categories.map((c) => {
+              const catInfo = CATEGORY_MAP[c];
+              return (
+                <span
+                  key={c}
+                  className="text-xs font-medium px-2 py-0.5 rounded-md flex-shrink-0"
+                  style={{
+                    backgroundColor: catInfo?.color ? `${catInfo.color}18` : undefined,
+                    color: catInfo?.color,
+                  }}
+                >
+                  {catInfo?.label}
+                </span>
+              );
+            })}
             {entry.tags.map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0 flex-shrink-0">
                 #{tag}
@@ -187,7 +193,7 @@ export function EntryViewerModal({ entry, open, onClose, onEdit }: EntryViewerMo
         {/* Fixed bottom actions */}
         <div className="flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-sm safe-area-bottom">
           {/* Calendar buttons for task/schedule with due_date */}
-          {(entry.category === 'task' || entry.category === 'schedule') && entry.due_date && (
+          {(hasCategory(entry, 'task') || hasCategory(entry, 'schedule')) && entry.due_date && (
             <div className="flex gap-2 px-4 pt-2.5 pb-1">
               <Button
                 type="button"

@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         raw_text: `[PDF] ${file.name}`,
         extracted_text: extractedText.slice(0, 50000), // DB storage limit
         input_type: 'pdf',
-        category: 'inbox',
+        categories: ['inbox'],
       })
       .select()
       .single();
@@ -131,17 +131,20 @@ export async function POST(request: NextRequest) {
       // Use more tokens for long PDF content (detailed summary)
       const result = await classifyText(textForAI, { maxTokens: 1500 });
 
-      // For PDF, force category to 'knowledge' if AI says inbox/memo
-      const category = result.category === 'inbox' || result.category === 'memo'
-        ? 'knowledge'
-        : result.category;
+      // For PDF, ensure 'knowledge' is included
+      let categories = result.categories;
+      if (categories.length === 1 && (categories[0] === 'inbox' || categories[0] === 'memo')) {
+        categories = ['knowledge'];
+      } else if (!categories.includes('knowledge')) {
+        categories = [...categories, 'knowledge'];
+      }
 
       const topic = result.topic?.trim().toLowerCase()
         || file.name.replace(/\.pdf$/i, '').trim().toLowerCase()
         || null;
 
       const updateData: Record<string, unknown> = {
-        category,
+        categories,
         tags: result.tags || [],
         summary: result.summary || null,
         priority: result.priority || null,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
-import { REMINDER_OPTIONS } from '@/types';
+import { REMINDER_OPTIONS, hasCategory } from '@/types';
 import type { ReminderOption } from '@/types';
 import { toast } from 'sonner';
 
@@ -17,7 +17,7 @@ export function ReminderCheck() {
 
       entries.forEach((entry) => {
         if (!entry.due_date || !entry.reminders?.length || entry.is_completed) return;
-        if (entry.category !== 'task' && entry.category !== 'schedule') return;
+        if (!hasCategory(entry, 'task') && !hasCategory(entry, 'schedule')) return;
 
         const dueTime = new Date(entry.due_date).getTime();
         if (dueTime < now) return; // past due
