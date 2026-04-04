@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
 import { Input } from '@/components/ui/input';
 import { Search, X } from 'lucide-react';
@@ -8,37 +8,23 @@ import { Button } from '@/components/ui/button';
 
 export function SearchBar() {
   const setFilter = useEntryStore((s) => s.setFilter);
-  const filter = useEntryStore((s) => s.filter);
-  const [value, setValue] = useState(filter.query || '');
-  const lastValueRef = useRef<string>('');
+  const [value, setValue] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const applySearch = useCallback((trimmed: string) => {
-    // Read latest filter directly from store to avoid stale ref
-    const current = useEntryStore.getState().filter;
-    setFilter({ ...current, query: trimmed || undefined, tag: undefined });
-  }, [setFilter]);
-
-  useEffect(() => {
-    const trimmed = value.trim();
-    const timer = setTimeout(() => {
-      if (trimmed === lastValueRef.current) return;
-      lastValueRef.current = trimmed;
-      applySearch(trimmed);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [value, applySearch]);
-
-  const handleSearch = () => {
-    const trimmed = value.trim();
-    lastValueRef.current = trimmed;
-    applySearch(trimmed);
+  const handleChange = (text: string) => {
+    setValue(text);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      const current = useEntryStore.getState().filter;
+      setFilter({ ...current, query: text.trim() || undefined });
+    }, 300);
   };
 
   const handleClear = () => {
     setValue('');
-    lastValueRef.current = '';
+    clearTimeout(timerRef.current);
     const current = useEntryStore.getState().filter;
-    setFilter({ ...current, query: undefined, tag: undefined });
+    setFilter({ ...current, query: undefined });
   };
 
   return (
@@ -48,8 +34,7 @@ export function SearchBar() {
         <Input
           placeholder="검색..."
           value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          onChange={(e) => handleChange(e.target.value)}
           className="pl-9 pr-8"
         />
         {value && (
