@@ -71,7 +71,7 @@ export function InstallGuideModal({ open, onClose }: InstallGuideModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md mx-auto z-10 max-h-[85vh] overflow-y-auto">
+      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md mx-auto z-10 max-h-[85vh] overflow-y-auto text-left">
         <div className="sticky top-0 bg-white rounded-t-2xl border-b border-gray-100 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">앱 설치하기</h2>
           <button
