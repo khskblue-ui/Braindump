@@ -65,13 +65,14 @@ function buildSystemPrompt(): string {
 - "다다음주"는 다음주의 다음 주
 - 요일만 언급된 경우 오늘 포함 가장 가까운 미래의 해당 요일
 - 특정 월/일만 있고 연도가 없으면 가장 가까운 미래의 해당 날짜
-- schedule이 포함된 경우 summary에 반드시 요일 포함. 예: "5월 15일 (목) 디자인팀 미팅"
+- schedule이 포함된 경우 summary에 날짜와 요일을 넣지 마세요. 날짜는 due_date 필드로 별도 표시됩니다.
 
 ## summary 작성 규칙
 - 문장형이 아닌 명사구/키워드 중심의 간결체로 작성
 - 15자 이내 권장. 핵심만.
-- 좋은 예: "엔진오일 교체 예약", "Q2 마케팅 전략 구상", "5월 15일 (목) 디자인팀 미팅"
-- 나쁜 예: "엔진오일을 교체해야 합니다", "마케팅 전략을 다시 구상해보는 것이 좋겠습니다"
+- schedule의 경우 날짜/요일 제외하고 내용만. 예: "디자인팀 미팅", "치과 예약"
+- 좋은 예: "엔진오일 교체 예약", "Q2 마케팅 전략 구상", "디자인팀 미팅"
+- 나쁜 예: "5월 15일 (목) 디자인팀 미팅", "엔진오일을 교체해야 합니다"
 
 반드시 JSON만 반환하세요. 다른 텍스트 없이:
 {
@@ -148,6 +149,31 @@ export async function classifyImage(
   return parseResponse(response);
 }
 
+/**
+ * Fix incorrect day-of-week in summary text by computing from actual dates.
+ * AI often miscalculates day-of-week, so we correct patterns like "4월 17일 (목)" → "4월 17일 (금)"
+ */
+function fixDayOfWeek(summary: string): string {
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  // Match patterns: "M월 D일 (요)" or "M월 D일(요)"
+  return summary.replace(
+    /(\d{1,2})월\s*(\d{1,2})일\s*\(([일월화수목금토])\)/g,
+    (match, monthStr, dayStr, dayChar) => {
+      const month = parseInt(monthStr, 10);
+      const day = parseInt(dayStr, 10);
+      // Use current year in KST
+      const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      let year = now.getFullYear();
+      // If the date is in the past, it might be next year
+      const testDate = new Date(year, month - 1, day);
+      if (testDate.getMonth() !== month - 1) return match; // invalid date
+      const correctDay = days[testDate.getDay()];
+      if (correctDay === dayChar) return match; // already correct
+      return `${month}월 ${day}일 (${correctDay})`;
+    }
+  );
+}
+
 function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
   const text = response.content
     .filter((block): block is Anthropic.Messages.TextBlock => block.type === 'text')
@@ -171,7 +197,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         tags: v.tags,
         topic: v.topic ?? undefined,
         extracted_text: v.extracted_text ?? undefined,
-        summary: v.summary ?? undefined,
+        summary: v.summary ? fixDayOfWeek(v.summary) : undefined,
         due_date: v.due_date ?? undefined,
         priority: v.priority ?? undefined,
         related_topics: v.related_topics,
@@ -187,7 +213,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         tags: v.tags,
         topic: v.topic ?? undefined,
         extracted_text: v.extracted_text ?? undefined,
-        summary: v.summary ?? undefined,
+        summary: v.summary ? fixDayOfWeek(v.summary) : undefined,
         due_date: v.due_date ?? undefined,
         priority: v.priority ?? undefined,
         related_topics: v.related_topics,
