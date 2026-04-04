@@ -56,7 +56,13 @@ export async function POST(request: NextRequest) {
       pageTexts.push(text);
     }
 
-    const extractedText = pageTexts.join('\n').trim();
+    // Sanitize: remove null bytes and invalid Unicode that PostgreSQL rejects
+    const extractedText = pageTexts.join('\n')
+      .replace(/\0/g, '')
+      .replace(/[\uFFFE\uFFFF]/g, '')
+      .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '')
+      .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
+      .trim();
 
     if (!extractedText || extractedText.length < 10) {
       pdfDoc.destroy();
