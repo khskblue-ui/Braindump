@@ -30,23 +30,25 @@ export function CategoryTabs() {
       >
         전체
       </button>
-      {CATEGORIES.map((cat) => (
-        <button
-          key={cat.value}
-          type="button"
-          onClick={() => handleClick(cat.value)}
-          className={`flex-shrink-0 snap-start text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
-            current === cat.value ? '' : 'opacity-60 hover:opacity-100'
-          }`}
-          style={{
-            backgroundColor: `${cat.color}${current === cat.value ? '25' : '18'}`,
-            color: cat.color,
-            boxShadow: current === cat.value ? `0 0 0 2px ${cat.color}40` : 'none',
-          }}
-        >
-          {cat.label}
-        </button>
-      ))}
+      {CATEGORIES.map((cat) => {
+        const isSelected = current === cat.value;
+        return (
+          <button
+            key={cat.value}
+            type="button"
+            onClick={() => handleClick(cat.value)}
+            className={`flex-shrink-0 snap-start text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+              isSelected ? 'opacity-100' : 'opacity-50 hover:opacity-80'
+            }`}
+            style={{
+              backgroundColor: cat.color + (isSelected ? '30' : '15'),
+              color: cat.color,
+            }}
+          >
+            {cat.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
