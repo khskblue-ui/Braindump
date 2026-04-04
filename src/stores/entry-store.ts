@@ -278,6 +278,17 @@ export const useEntryStore = create<EntryStore>()(
       onRehydrateStorage: () => (state) => {
         // C2: Mark hydration complete and trigger background refresh
         if (state) {
+          // Migrate cached entries from old category (string) → categories (array)
+          state.entries = state.entries.map((e) => {
+            const raw = e as unknown as Record<string, unknown>;
+            if (!raw.categories && raw.category) {
+              return { ...e, categories: [raw.category as string] } as Entry;
+            }
+            if (!raw.categories) {
+              return { ...e, categories: ['inbox'] } as Entry;
+            }
+            return e;
+          });
           state._hydrated = true;
         }
       },

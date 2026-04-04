@@ -42,7 +42,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
             {/* Category + time */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex gap-1">
-                {entry.categories.map((c) => {
+                {(entry.categories || []).map((c) => {
                   const catInfo = CATEGORY_MAP[c];
                   return (
                     <span
