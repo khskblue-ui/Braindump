@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (query) {
-    dbQuery = dbQuery.or(`raw_text.ilike.%${query}%,summary.ilike.%${query}%,tags::text.ilike.%${query}%`);
+    const q = query.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    dbQuery = dbQuery.or(`raw_text.ilike.%${q}%,summary.ilike.%${q}%,extracted_text.ilike.%${q}%,tags::text.ilike.%${q}%`);
   }
 
   dbQuery = dbQuery.range(offset, offset + limit); // request limit+1 items

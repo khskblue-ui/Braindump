@@ -9,19 +9,13 @@ import { Button } from '@/components/ui/button';
 export function SearchBar() {
   const setFilter = useEntryStore((s) => s.setFilter);
   const filter = useEntryStore((s) => s.filter);
-  const [value, setValue] = useState(filter.query || (filter.tag ? `#${filter.tag}` : ''));
+  const [value, setValue] = useState(filter.query || '');
   const lastValueRef = useRef<string>('');
-  // H5: Capture latest filter in ref to avoid stale closure
   const filterRef = useRef(filter);
   filterRef.current = filter;
 
   const applySearch = useCallback((trimmed: string) => {
-    if (trimmed.startsWith('#') && !trimmed.includes(' ')) {
-      const tag = trimmed.slice(1);
-      setFilter({ ...filterRef.current, tag: tag || undefined, query: undefined });
-    } else {
-      setFilter({ ...filterRef.current, query: trimmed || undefined, tag: undefined });
-    }
+    setFilter({ ...filterRef.current, query: trimmed || undefined, tag: undefined });
   }, [setFilter]);
 
   useEffect(() => {
@@ -51,7 +45,7 @@ export function SearchBar() {
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
         <Input
-          placeholder="검색... (#태그명으로 태그 검색)"
+          placeholder="검색..."
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
