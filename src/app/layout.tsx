@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BrainDump - AI 생각 정리",
+  title: "BrainDump",
   description: "머릿속 생각을 빠르게 기록하면, AI가 자동으로 분류하고 체계화합니다.",
   manifest: "/manifest.json",
 };
