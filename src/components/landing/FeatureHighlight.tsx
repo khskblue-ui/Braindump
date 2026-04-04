@@ -12,7 +12,7 @@ const FEATURES = [
   },
   {
     id: 'dashboard',
-    title: '오늘 대시보드',
+    title: '대시보드',
     desc: '할 일과 일정을 한눈에',
     icon: 'dashboard',
   },
