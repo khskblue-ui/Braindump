@@ -11,6 +11,7 @@ import { SearchBar } from '@/components/dashboard/SearchBar';
 import { ReminderCheck } from '@/components/dashboard/ReminderCheck';
 import { TodayDashboard } from '@/components/dashboard/TodayDashboard';
 import { VisitReview } from '@/components/dashboard/VisitReview';
+import { PwaInstallPrompt } from '@/components/dashboard/PwaInstallPrompt';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -95,6 +96,9 @@ export default function DashboardPage() {
     <div className="space-y-4">
       {/* Quick Capture */}
       <QuickCapture />
+
+      {/* PWA Install Prompt */}
+      <PwaInstallPrompt />
 
       {/* Visit Review */}
       <VisitReview />
