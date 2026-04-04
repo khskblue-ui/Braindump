@@ -129,10 +129,13 @@ export function QuickCapture() {
 
   const [isFocused, setIsFocused] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [interimText, setInterimText] = useState('');
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [speechSupported, setSpeechSupported] = useState(true);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
-  const interimRef = useRef('');
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const SpeechRecognitionCtor =
@@ -141,6 +144,22 @@ export function QuickCapture() {
       setSpeechSupported(false);
     }
   }, []);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, []);
+
+  const resetSilenceTimer = () => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current = setTimeout(() => {
+      // Auto-stop after 3s silence
+      recognitionRef.current?.stop();
+    }, 3000);
+  };
 
   const toggleRecording = () => {
     if (isRecording) {
@@ -159,12 +178,21 @@ export function QuickCapture() {
 
     recognition.onstart = () => {
       setIsRecording(true);
-      interimRef.current = '';
-      toast.info('음성 인식 중...');
+      setInterimText('');
+      setRecordingSeconds(0);
+      // Start recording timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((s) => s + 1);
+      }, 1000);
+      // Start silence timer (auto-stop if no speech detected)
+      resetSilenceTimer();
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
+      // Reset silence timer on every result
+      resetSilenceTimer();
+
       let interim = '';
       let finalChunk = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -177,23 +205,28 @@ export function QuickCapture() {
       }
       if (finalChunk) {
         setText((prev) => prev + finalChunk);
-        interimRef.current = '';
+        setInterimText('');
       } else {
-        interimRef.current = interim;
+        setInterimText(interim);
       }
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onerror = (event: any) => {
-      if (event.error !== 'aborted') {
+      if (event.error === 'not-allowed') {
+        toast.error('마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
+      } else if (event.error !== 'aborted') {
         toast.error(`음성 인식 오류: ${event.error}`);
       }
       setIsRecording(false);
+      setInterimText('');
     };
 
     recognition.onend = () => {
       setIsRecording(false);
-      interimRef.current = '';
+      setInterimText('');
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     };
 
     recognitionRef.current = recognition;
@@ -202,7 +235,10 @@ export function QuickCapture() {
 
   return (
     <div className="space-y-2">
-      <div className={`relative rounded-xl transition-shadow duration-200 ${isFocused ? 'ring-2 ring-blue-400/50 shadow-md' : ''}`}>
+      <div className={`relative rounded-xl transition-shadow duration-200 ${
+        isRecording ? 'ring-2 ring-red-400/70 shadow-md' :
+        isFocused ? 'ring-2 ring-blue-400/50 shadow-md' : ''
+      }`}>
         <Textarea
           ref={textareaRef}
           value={text}
@@ -274,6 +310,22 @@ export function QuickCapture() {
           </Button>
         </div>
       </div>
+
+      {/* Voice recording indicator */}
+      {isRecording && (
+        <div className="flex items-center gap-2 text-sm px-1">
+          <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-red-500 font-medium">듣는 중...</span>
+          <span className="text-xs text-muted-foreground">
+            {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')}
+          </span>
+          {interimText && (
+            <span className="text-muted-foreground/70 truncate flex-1 text-xs italic">
+              {interimText}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* PDF uploading indicator */}
       {uploadingPdf && (
