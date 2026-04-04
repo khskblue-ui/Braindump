@@ -200,8 +200,9 @@ export const useEntryStore = create<EntryStore>()(
           if (!res.ok) return;
           const result = await res.json();
 
-          set((state) => ({
-            entries: state.entries.map((e) =>
+          set((state) => {
+            // Update the original entry
+            let updated = state.entries.map((e) =>
               e.id === id
                 ? {
                     ...e,
@@ -214,10 +215,16 @@ export const useEntryStore = create<EntryStore>()(
                     priority: result.priority ?? e.priority,
                   }
                 : e
-            ),
-          }));
+            );
+
+            // Prepend additional entries from multi-card split
+            if (result.additional_entries_created?.length) {
+              updated = [...result.additional_entries_created, ...updated];
+            }
+
+            return { entries: updated };
+          });
         } catch {
-          // M2: notify user of classification failure
           toast.error('AI 분류에 실패했습니다. 수동으로 분류해주세요.');
         }
       },

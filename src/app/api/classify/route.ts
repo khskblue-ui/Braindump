@@ -188,7 +188,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '분류 결과 저장에 실패했습니다.' }, { status: 500 });
     }
 
-    return NextResponse.json(result);
+    // Handle multi-card split: insert additional entries if AI detected independent items
+    const additionalEntries: Array<Record<string, unknown>> = [];
+    if (result.additional_entries && result.additional_entries.length > 0) {
+      for (const item of result.additional_entries.slice(0, 3)) {
+        const addTopic = item.category === 'knowledge' && item.topic
+          ? item.topic.trim().toLowerCase() : null;
+        const insertData: Record<string, unknown> = {
+          user_id: user.id,
+          raw_text: item.summary || null,
+          input_type: 'text',
+          category: item.category,
+          tags: item.tags || [],
+          summary: item.summary || null,
+          priority: item.priority || null,
+          ai_metadata: item,
+        };
+        if (addTopic) insertData.topic = addTopic;
+        if (item.due_date) insertData.due_date = item.due_date;
+
+        const { data: newEntry, error: insertError } = await supabase
+          .from('entries')
+          .insert(insertData)
+          .select()
+          .single();
+
+        if (!insertError && newEntry) {
+          additionalEntries.push(newEntry);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      ...result,
+      additional_entries_created: additionalEntries.length > 0 ? additionalEntries : undefined,
+    });
   } catch (err) {
     console.error('Classification error:', err);
     return NextResponse.json(

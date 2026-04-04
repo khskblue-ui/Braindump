@@ -53,7 +53,7 @@ export interface UpdateEntryInput {
   reminders?: ReminderOption[];
 }
 
-export interface ClassifyResult {
+export interface ClassifyResultItem {
   category: EntryCategory;
   tags: string[];
   topic?: string;
@@ -62,6 +62,10 @@ export interface ClassifyResult {
   due_date?: string;
   priority?: EntryPriority;
   related_topics?: string[];
+}
+
+export interface ClassifyResult extends ClassifyResultItem {
+  additional_entries?: ClassifyResultItem[];
 }
 
 export interface TopicInfo {
