@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const rawNext = searchParams.get('next') ?? '/';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
+  const rawNext = searchParams.get('next') ?? '/home';
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home';
 
   if (code) {
     const supabase = await createClient();

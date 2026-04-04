@@ -9,7 +9,7 @@ export function TopHeader() {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container mx-auto px-4 max-w-3xl flex items-center h-12">
-        <Link href="/" className="flex items-center gap-2 font-bold text-lg">
+        <Link href="/home" className="flex items-center gap-2 font-bold text-lg">
           <Logo />
           <span>BrainDump</span>
         </Link>
@@ -19,7 +19,7 @@ export function TopHeader() {
 }
 
 const tabs = [
-  { href: '/', label: '홈', icon: Home },
+  { href: '/home', label: '홈', icon: Home },
   { href: '/knowledge', label: '지식', icon: BookOpen },
   { href: '/trash', label: '휴지통', icon: Trash2 },
   { href: '/settings', label: '설정', icon: Settings },
@@ -33,7 +33,7 @@ export function BottomNavigation() {
       <div className="flex items-center justify-around h-16 max-w-3xl mx-auto">
         {tabs.map(({ href, label, icon: Icon }) => {
           const isActive =
-            href === '/' ? pathname === '/' : pathname.startsWith(href);
+            href === '/home' ? pathname === '/home' : pathname.startsWith(href);
           return (
             <Link
               key={href}
