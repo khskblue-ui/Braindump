@@ -13,7 +13,7 @@ export function CategoryTabs() {
 
   return (
     <div
-      className="flex gap-1.5 overflow-x-auto scrollbar-hide snap-x snap-mandatory py-0.5"
+      className="flex gap-1.5 overflow-x-auto scrollbar-hide snap-x snap-mandatory py-1"
       style={{
         maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
         WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
@@ -39,12 +39,9 @@ export function CategoryTabs() {
             current === cat.value ? '' : 'opacity-60 hover:opacity-100'
           }`}
           style={{
-            backgroundColor: `${cat.color}18`,
+            backgroundColor: `${cat.color}${current === cat.value ? '25' : '18'}`,
             color: cat.color,
-            outlineColor: current === cat.value ? cat.color : undefined,
-            outlineWidth: current === cat.value ? '2px' : undefined,
-            outlineOffset: '1px',
-            outlineStyle: current === cat.value ? 'solid' : undefined,
+            boxShadow: current === cat.value ? `0 0 0 2px ${cat.color}40` : undefined,
           }}
         >
           {cat.label}
