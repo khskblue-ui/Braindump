@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useEntryStore } from '@/stores/entry-store';
 import { QuickCapture } from '@/components/capture/QuickCapture';
@@ -24,6 +24,8 @@ export default function DashboardPage() {
   const entries = useEntryStore((s) => s.entries);
   const loading = useEntryStore((s) => s.loading);
   const fetchEntries = useEntryStore((s) => s.fetchEntries);
+  const hasMore = useEntryStore((s) => s.hasMore);
+  const loadMore = useEntryStore((s) => s.loadMore);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [reclassifying, setReclassifying] = useState(false);
 
@@ -52,11 +54,26 @@ export default function DashboardPage() {
     }
   };
 
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
   // M7: Empty deps - fetchEntries reference is stable from Zustand
   useEffect(() => {
     fetchEntries();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore, hasMore]);
 
   return (
     <div className="space-y-4">
@@ -97,13 +114,22 @@ export default function DashboardPage() {
             <p className="text-sm mt-1">위 입력창에 생각을 입력해보세요!</p>
           </div>
         ) : (
-          entries.map((entry) => (
-            <EntryCard
-              key={entry.id}
-              entry={entry}
-              onClick={() => setSelectedEntry(entry)}
-            />
-          ))
+          <>
+            {entries.map((entry) => (
+              <EntryCard
+                key={entry.id}
+                entry={entry}
+                onClick={() => setSelectedEntry(entry)}
+              />
+            ))}
+            {hasMore && (
+              <div ref={loadMoreRef} className="flex justify-center py-4">
+                <Button variant="ghost" size="sm" onClick={loadMore} disabled={loading}>
+                  {loading ? '로딩 중...' : '더 보기'}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
   let dbQuery = supabase
     .from('entries')
-    .select('*', { count: 'exact' })
+    .select('*')
     .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
@@ -80,20 +80,23 @@ export async function GET(request: NextRequest) {
   }
 
   if (query) {
-    dbQuery = dbQuery.textSearch('fts', query, { type: 'plain', config: 'simple' });
+    dbQuery = dbQuery.or(`raw_text.ilike.%${query}%,summary.ilike.%${query}%,tags::text.ilike.%${query}%`);
   }
 
-  dbQuery = dbQuery.range(offset, offset + limit - 1);
+  dbQuery = dbQuery.range(offset, offset + limit); // request limit+1 items
 
-  const { data: entries, count, error } = await dbQuery;
+  const { data: entries, error } = await dbQuery;
 
   if (error) {
     console.error('Entry fetch error:', error);
     return NextResponse.json({ error: '항목 조회에 실패했습니다.' }, { status: 500 });
   }
 
-  // Generate signed URLs for image entries
-  const entriesWithSignedUrls = entries ? await attachSignedUrls(supabase, entries) : [];
+  const hasMore = (entries?.length ?? 0) > limit;
+  const trimmedEntries = hasMore ? entries!.slice(0, limit) : (entries ?? []);
 
-  return NextResponse.json({ entries: entriesWithSignedUrls, total: count || 0, page });
+  // Generate signed URLs for image entries
+  const entriesWithSignedUrls = trimmedEntries.length > 0 ? await attachSignedUrls(supabase, trimmedEntries) : [];
+
+  return NextResponse.json({ entries: entriesWithSignedUrls, hasMore, page });
 }

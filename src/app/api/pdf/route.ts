@@ -11,6 +11,15 @@ const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_PAGES = 50;
 const MAX_TEXT_LENGTH = 100000; // ~100K chars for AI input safety
 
+function sanitizePdfText(text: string): string {
+  // Keep: Korean (AC00-D7AF, 1100-11FF, 3130-318F, A960-A97F),
+  // CJK (4E00-9FFF, 3000-303F), Latin (0020-007F, 00A0-00FF),
+  // common punctuation, numbers, whitespace
+  return text.replace(/[^\u0020-\u007F\u00A0-\u00FF\u0100-\u024F\u1100-\u11FF\u3000-\u303F\u3130-\u318F\u4E00-\u9FFF\uAC00-\uD7AF\uA960-\uA97F\uD7B0-\uD7FF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF\n\r\t]/g, '')
+    .replace(/\n{3,}/g, '\n\n')  // collapse excessive newlines
+    .trim();
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if ('error' in auth && auth.error) return auth.error;
@@ -49,20 +58,37 @@ export async function POST(request: NextRequest) {
     for (let i = 1; i <= numPages; i++) {
       const page = await pdfDoc.getPage(i);
       const content = await page.getTextContent();
-      const text = content.items
-        .filter(item => 'str' in item)
-        .map(item => (item as { str: string }).str)
-        .join(' ');
-      pageTexts.push(text);
+      const lines: string[] = [];
+      let currentLine = '';
+      let lastY: number | null = null;
+
+      for (const item of content.items) {
+        if (!('str' in item)) continue;
+        const textItem = item as { str: string; transform: number[]; hasEOL?: boolean };
+        const y = textItem.transform[5];
+
+        if (lastY !== null && Math.abs(y - lastY) > 2) {
+          // Y position changed → new line
+          if (currentLine.trim()) lines.push(currentLine.trim());
+          currentLine = textItem.str;
+        } else {
+          currentLine += textItem.str;
+        }
+
+        if (textItem.hasEOL) {
+          if (currentLine.trim()) lines.push(currentLine.trim());
+          currentLine = '';
+          lastY = null;
+        } else {
+          lastY = y;
+        }
+      }
+      if (currentLine.trim()) lines.push(currentLine.trim());
+      pageTexts.push(lines.join('\n'));
     }
 
-    // Sanitize: remove null bytes and invalid Unicode that PostgreSQL rejects
-    const extractedText = pageTexts.join('\n')
-      .replace(/\0/g, '')
-      .replace(/[\uFFFE\uFFFF]/g, '')
-      .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '')
-      .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
-      .trim();
+    const rawText = pageTexts.join('\n\n');  // double newline between pages
+    const extractedText = sanitizePdfText(rawText);
 
     if (!extractedText || extractedText.length < 10) {
       pdfDoc.destroy();

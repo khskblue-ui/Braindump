@@ -13,7 +13,7 @@ interface EntryFilter {
 
 interface EntryStore {
   entries: Entry[];
-  total: number;
+  hasMore: boolean;
   filter: EntryFilter;
   loading: boolean;
   page: number;
@@ -23,6 +23,7 @@ interface EntryStore {
   setFilter: (filter: EntryFilter) => void;
   setPage: (page: number) => void;
   fetchEntries: () => Promise<void>;
+  loadMore: () => void;
   createEntry: (data: CreateEntryInput) => Promise<Entry>;
   updateEntry: (id: string, data: UpdateEntryInput) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
@@ -42,7 +43,7 @@ export const useEntryStore = create<EntryStore>()(
   persist(
     (set, get) => ({
       entries: [],
-      total: 0,
+      hasMore: false,
       filter: {},
       loading: false,
       page: 1,
@@ -50,7 +51,7 @@ export const useEntryStore = create<EntryStore>()(
       _hydrated: false,
 
       setFilter: (filter) => {
-        set({ filter, page: 1 });
+        set({ filter, page: 1, entries: [] });
         get().fetchEntries();
       },
 
@@ -79,7 +80,14 @@ export const useEntryStore = create<EntryStore>()(
           const res = await fetch(`/api/entries?${params}`, { signal });
           if (!res.ok) throw new Error('Failed to fetch entries');
           const data = await res.json();
-          set({ entries: data.entries, total: data.total });
+          if (page === 1) {
+            set({ entries: data.entries, hasMore: data.hasMore });
+          } else {
+            set((state) => ({
+              entries: [...state.entries, ...data.entries],
+              hasMore: data.hasMore,
+            }));
+          }
         } catch (err: unknown) {
           // Ignore abort errors
           if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -87,6 +95,13 @@ export const useEntryStore = create<EntryStore>()(
         } finally {
           set({ loading: false });
         }
+      },
+
+      loadMore: () => {
+        const { hasMore, loading } = get();
+        if (!hasMore || loading) return;
+        set((state) => ({ page: state.page + 1 }));
+        get().fetchEntries();
       },
 
       createEntry: async (data) => {
@@ -103,7 +118,6 @@ export const useEntryStore = create<EntryStore>()(
 
         set((state) => ({
           entries: [entry, ...state.entries],
-          total: state.total + 1,
         }));
 
         // Background classification (M2: toast on failure)
@@ -132,7 +146,6 @@ export const useEntryStore = create<EntryStore>()(
 
         set((state) => ({
           entries: state.entries.filter((e) => e.id !== id),
-          total: state.total - 1,
         }));
       },
 
@@ -145,7 +158,6 @@ export const useEntryStore = create<EntryStore>()(
           await get().updateEntry(id, { is_completed: true, deleted_at: new Date().toISOString() });
           set((state) => ({
             entries: state.entries.filter((e) => e.id !== id),
-            total: state.total - 1,
           }));
           toast('할 일을 완료했습니다.', {
             action: {
@@ -203,7 +215,6 @@ export const useEntryStore = create<EntryStore>()(
         await get().updateEntry(id, { deleted_at: new Date().toISOString() });
         set((state) => ({
           entries: state.entries.filter((e) => e.id !== id),
-          total: state.total - 1,
         }));
       },
 
@@ -249,7 +260,6 @@ export const useEntryStore = create<EntryStore>()(
           image_url: e.image_url && (e.image_url.includes('token=') || e.image_url.includes('Expires=')) ? null : e.image_url,
           image_thumbnail_url: e.image_thumbnail_url && (e.image_thumbnail_url.includes('token=') || e.image_thumbnail_url.includes('Expires=')) ? null : e.image_thumbnail_url,
         })),
-        total: state.total,
       }),
       onRehydrateStorage: () => (state) => {
         // C2: Mark hydration complete and trigger background refresh
