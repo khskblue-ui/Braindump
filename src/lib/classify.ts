@@ -7,13 +7,47 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
+function buildCalendarReference(): string {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const lines: string[] = [];
+
+  // Generate 21 days from today
+  for (let i = 0; i < 21; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    const label = i === 0 ? ' ← 오늘' : i === 1 ? ' ← 내일' : '';
+    lines.push(
+      `${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]})${label}`
+    );
+  }
+
+  // Find week boundaries for "이번주" / "다음주" / "차주"
+  const todayDay = now.getDay(); // 0=일 ~ 6=토
+  // Days until next Monday (Korean weeks start Monday)
+  const daysUntilNextMon = todayDay === 0 ? 1 : 8 - todayDay;
+  const thisWeekEnd = new Date(now);
+  thisWeekEnd.setDate(thisWeekEnd.getDate() + daysUntilNextMon - 1);
+  const nextWeekStart = new Date(now);
+  nextWeekStart.setDate(nextWeekStart.getDate() + daysUntilNextMon);
+
+  return `이번주 남은 기간: ~${thisWeekEnd.getMonth() + 1}/${thisWeekEnd.getDate()} (${days[thisWeekEnd.getDay()]})\n` +
+    `다음주/차주 시작: ${nextWeekStart.getMonth() + 1}/${nextWeekStart.getDate()} (${days[nextWeekStart.getDay()]})\n\n` +
+    lines.join('\n');
+}
+
 function buildSystemPrompt(): string {
   // Use Korean timezone (KST, UTC+9) for correct date/day-of-week
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   const days = ['일', '월', '화', '수', '목', '금', '토'];
   const todayStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+  const calendar = buildCalendarReference();
 
-  return `오늘은 ${todayStr}입니다. 모든 날짜와 요일은 한국 시간(KST, UTC+9) 기준으로 판단하세요. 사용자가 입력한 텍스트 또는 이미지를 분석하여 JSON으로 분류하세요.
+  return `오늘은 ${todayStr}입니다. 모든 날짜와 요일은 한국 시간(KST, UTC+9) 기준으로 판단하세요.
+
+## 날짜 참조 캘린더 (반드시 이 표를 참고하여 날짜를 결정하세요)
+${calendar}
+ 사용자가 입력한 텍스트 또는 이미지를 분석하여 JSON으로 분류하세요.
 이미지가 포함된 경우 이미지 내용을 읽고 extracted_text에 추출한 텍스트를 포함하세요.
 
 ## 분류 판단 기준 (순서대로 적용)
@@ -58,15 +92,15 @@ function buildSystemPrompt(): string {
 - "보고서 제출하기" → ["task"] (단일 할 일)
 - "회의에서 예산 500만원 확정, 다음주 수요일까지 보고서 제출" → ["schedule", "task", "memo"]
 
-## 날짜 해석 규칙
-- "다음주", "차주"는 오늘 기준 다음 월요일이 시작하는 주를 의미
-- "이번주"는 오늘이 속한 주 (월~일)
+## 날짜 해석 규칙 (반드시 위의 날짜 참조 캘린더를 보고 결정하세요!)
+- "다음주", "차주"는 위 캘린더의 "다음주/차주 시작" 날짜부터의 주
+- "이번주"는 위 캘린더의 "이번주 남은 기간"
 - "내일모레"는 모레와 같은 의미
 - "다다음주"는 다음주의 다음 주
-- 요일만 언급된 경우 오늘 포함 가장 가까운 미래의 해당 요일
+- 요일만 언급된 경우: 캘린더에서 해당 요일을 찾아 가장 가까운 미래 날짜 사용
 - 특정 월/일만 있고 연도가 없으면 가장 가까운 미래의 해당 날짜
-- schedule이 포함된 경우 summary에 날짜와 요일을 포함하세요. 예: "5월 15일 (목) 디자인팀 미팅"
-- 요일은 반드시 정확하게 계산하세요. 틀리면 안 됩니다.
+- schedule이 포함된 경우 summary에 날짜와 요일을 포함하세요
+- **중요**: 요일은 캘린더에서 직접 확인하세요. 직접 계산하지 마세요.
 
 ## summary 작성 규칙
 - 문장형이 아닌 명사구/키워드 중심의 간결체로 작성
