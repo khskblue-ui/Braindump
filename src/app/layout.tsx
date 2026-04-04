@@ -20,10 +20,13 @@ export const metadata: Metadata = {
   title: "BrainDump",
   description: "머릿속 생각을 빠르게 기록하면, AI가 자동으로 분류하고 체계화합니다.",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1A73E8",
+  themeColor: "#3B82F6",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

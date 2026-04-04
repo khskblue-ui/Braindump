@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { classifyText } from '@/lib/classify';
-import { PDFParse } from 'pdf-parse';
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+
+// Disable worker for serverless environment
+GlobalWorkerOptions.workerSrc = '';
 
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_PAGES = 50;
@@ -28,26 +31,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '10MB 이하의 PDF만 가능합니다.' }, { status: 400 });
     }
 
-    // 1. Extract text from PDF using pdf-parse v2
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const parser = new PDFParse({ data: buffer });
-    const textResult = await parser.getText({ first: MAX_PAGES });
-    const numPages = textResult.pages?.length ?? 0;
+    // 1. Extract text from PDF using pdfjs-dist
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const pdfDoc = await getDocument({ data: buffer, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
+    const numPages = Math.min(pdfDoc.numPages, MAX_PAGES);
+    const pageTexts: string[] = [];
 
-    const extractedText = textResult.pages
-      ?.map((p: { text: string }) => p.text)
-      .join('\n')
-      .trim();
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const content = await page.getTextContent();
+      const text = content.items
+        .filter(item => 'str' in item)
+        .map(item => (item as { str: string }).str)
+        .join(' ');
+      pageTexts.push(text);
+    }
+
+    const extractedText = pageTexts.join('\n').trim();
 
     if (!extractedText || extractedText.length < 10) {
-      parser.destroy();
+      pdfDoc.destroy();
       return NextResponse.json(
         { error: '텍스트를 추출할 수 없습니다. 스캔된 PDF는 지원하지 않습니다.' },
         { status: 400 }
       );
     }
 
-    parser.destroy();
+    pdfDoc.destroy();
 
     // Truncate if too long
     const textForAI = extractedText.length > MAX_TEXT_LENGTH
