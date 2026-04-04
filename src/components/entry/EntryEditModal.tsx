@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
-import type { Entry, EntryCategory, EntryPriority } from '@/types';
-import { CATEGORIES } from '@/types';
+import type { Entry, EntryCategory, EntryPriority, ReminderOption } from '@/types';
+import { CATEGORIES, REMINDER_OPTIONS } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { Trash2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { downloadICS, getGoogleCalendarUrl } from '@/lib/calendar';
 
 interface EntryEditModalProps {
   entry: Entry;
@@ -36,19 +37,9 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   const [dueDate, setDueDate] = useState(
     entry.due_date ? entry.due_date.slice(0, 16) : ''
   );
+  const [reminders, setReminders] = useState<ReminderOption[]>(entry.reminders || []);
   const [saving, setSaving] = useState(false);
   const [reclassifying, setReclassifying] = useState(false);
-  // H4: Track reminder timeout for cleanup
-  const reminderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // H4: Cleanup reminder timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (reminderTimeoutRef.current) {
-        clearTimeout(reminderTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -61,6 +52,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
         topic: topic || null,
         priority: (priority as EntryPriority) || null,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
+        reminders,
       });
       toast.success('수정되었습니다.');
       onClose();
@@ -127,45 +119,14 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
     }
   };
 
-  const handleRequestReminder = async () => {
-    if (!dueDate) {
-      toast.warning('먼저 날짜/시간을 설정해주세요.');
-      return;
-    }
-    if (!('Notification' in window)) {
-      toast.error('이 브라우저는 알림을 지원하지 않습니다.');
-      return;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      toast.error('알림 권한이 거부되었습니다.');
-      return;
-    }
-    const due = new Date(dueDate).getTime();
-    const now = Date.now();
-    const delay = due - now - 10 * 60 * 1000; // 10 minutes before
-    if (delay <= 0) {
-      toast.warning('일정이 이미 지났거나 10분 이내입니다.');
-      return;
-    }
-    // H4: Clear previous timer and track new one
-    if (reminderTimeoutRef.current) {
-      clearTimeout(reminderTimeoutRef.current);
-    }
-    reminderTimeoutRef.current = setTimeout(() => {
-      new Notification('BrainDump 리마인드', {
-        body: summary || rawText || '일정이 곧 시작됩니다',
-        icon: '/icons/icon-192x192.png',
-      });
-    }, delay);
-    toast.success('리마인드가 설정되었습니다. (10분 전 알림)');
-  };
-
   const priorityConfig = {
     high: { label: '높음', color: '#EF4444' },
     medium: { label: '보통', color: '#EAB308' },
     low: { label: '낮음', color: '#22C55E' },
   } as const;
+
+  const showDueDate = category === 'task' || category === 'schedule';
+  const dueDateLabel = category === 'schedule' ? '날짜/시간' : '마감일 (선택)';
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
@@ -286,11 +247,11 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             </div>
           )}
 
-          {/* Due date + reminder (for schedule) */}
-          {category === 'schedule' && (
+          {/* Due date (for task and schedule) */}
+          {showDueDate && (
             <div className="space-y-2">
               <div>
-                <label className="text-sm font-medium">날짜/시간</label>
+                <label className="text-sm font-medium">{dueDateLabel}</label>
                 <Input
                   type="datetime-local"
                   value={dueDate}
@@ -298,15 +259,71 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
                   className="mt-1 focus-visible:ring-blue-400/50"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRequestReminder}
-                className="w-full text-xs"
-              >
-                🔔 리마인드 알림 설정 (10분 전)
-              </Button>
+
+              {/* Calendar export buttons */}
+              {dueDate && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const e = { ...entry, due_date: new Date(dueDate).toISOString(), summary, raw_text: rawText };
+                      downloadICS(e as Entry);
+                    }}
+                    className="flex-1 text-xs"
+                  >
+                    Apple 캘린더
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const e = { ...entry, due_date: new Date(dueDate).toISOString(), summary, raw_text: rawText };
+                      window.open(getGoogleCalendarUrl(e as Entry), '_blank');
+                    }}
+                    className="flex-1 text-xs"
+                  >
+                    Google 캘린더
+                  </Button>
+                </div>
+              )}
+
+              {/* Reminder selector */}
+              {dueDate && (
+                <div>
+                  <label className="text-sm font-medium">리마인드 알림 (최대 2개)</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {REMINDER_OPTIONS.map((opt) => {
+                      const selected = reminders.includes(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            if (selected) {
+                              setReminders(reminders.filter(r => r !== opt.value));
+                            } else if (reminders.length < 2) {
+                              setReminders([...reminders, opt.value]);
+                            }
+                          }}
+                          className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all ${
+                            selected
+                              ? 'bg-blue-100 text-blue-700 outline outline-2 outline-offset-1 outline-blue-500'
+                              : reminders.length >= 2
+                                ? 'bg-muted text-muted-foreground opacity-40 cursor-not-allowed'
+                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                          disabled={!selected && reminders.length >= 2}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

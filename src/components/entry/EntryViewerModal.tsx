@@ -15,6 +15,7 @@ import { Pencil, Trash2, Sparkles, ArrowLeft, FileText, Copy, Check } from 'luci
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { downloadICS, getGoogleCalendarUrl } from '@/lib/calendar';
 
 interface EntryViewerModalProps {
   entry: Entry;
@@ -184,25 +185,50 @@ export function EntryViewerModal({ entry, open, onClose, onEdit }: EntryViewerMo
         </div>
 
         {/* Fixed bottom actions */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-t border-border/50 bg-background/95 backdrop-blur-sm safe-area-bottom">
-          <div className="flex gap-1.5">
-            <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
-              <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleReclassify}
-              disabled={reclassifying}
-            >
-              <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-              <span className="text-xs ml-1">{reclassifying ? '분류 중...' : 'AI 재분류'}</span>
+        <div className="flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-sm safe-area-bottom">
+          {/* Calendar buttons for task/schedule with due_date */}
+          {(entry.category === 'task' || entry.category === 'schedule') && entry.due_date && (
+            <div className="flex gap-2 px-4 pt-2.5 pb-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => downloadICS(entry)}
+                className="flex-1 text-xs"
+              >
+                Apple 캘린더
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(getGoogleCalendarUrl(entry), '_blank')}
+                className="flex-1 text-xs"
+              >
+                Google 캘린더
+              </Button>
+            </div>
+          )}
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex gap-1.5">
+              <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleReclassify}
+                disabled={reclassifying}
+              >
+                <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+                <span className="text-xs ml-1">{reclassifying ? '분류 중...' : 'AI 재분류'}</span>
+              </Button>
+            </div>
+            <Button size="sm" onClick={onEdit}>
+              <Pencil className="h-4 w-4 mr-1" strokeWidth={1.5} />
+              편집
             </Button>
           </div>
-          <Button size="sm" onClick={onEdit}>
-            <Pencil className="h-4 w-4 mr-1" strokeWidth={1.5} />
-            편집
-          </Button>
         </div>
       </DialogContentFullscreen>
     </Dialog>

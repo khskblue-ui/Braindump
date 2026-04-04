@@ -122,13 +122,6 @@ export function QuickCapture() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
   const handleImageUploaded = (url: string, thumbnail: string) => {
     setImageUrl(url);
     setThumbnailUrl(thumbnail);
@@ -143,10 +136,9 @@ export function QuickCapture() {
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder="생각을 입력하세요... (Enter로 저장, Shift+Enter로 줄바꿈)"
+          placeholder="생각을 입력하세요..."
           className="min-h-[80px] pr-24 resize-none"
           disabled={submitting || uploadingPdf}
         />

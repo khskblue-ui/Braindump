@@ -1,6 +1,15 @@
 export type EntryCategory = 'task' | 'idea' | 'memo' | 'knowledge' | 'schedule' | 'inbox';
 export type EntryInputType = 'text' | 'image' | 'mixed' | 'pdf';
 export type EntryPriority = 'high' | 'medium' | 'low';
+export type ReminderOption = '1week' | '2days' | '1day' | '1hour' | '10min';
+
+export const REMINDER_OPTIONS: { value: ReminderOption; label: string; ms: number }[] = [
+  { value: '1week', label: '1주일 전', ms: 7 * 24 * 60 * 60 * 1000 },
+  { value: '2days', label: '2일 전', ms: 2 * 24 * 60 * 60 * 1000 },
+  { value: '1day', label: '1일 전', ms: 24 * 60 * 60 * 1000 },
+  { value: '1hour', label: '1시간 전', ms: 60 * 60 * 1000 },
+  { value: '10min', label: '10분 전', ms: 10 * 60 * 1000 },
+];
 
 export interface Entry {
   id: string;
@@ -16,6 +25,7 @@ export interface Entry {
   due_date: string | null;
   priority: EntryPriority | null;
   is_completed: boolean;
+  reminders: ReminderOption[];
   input_type: EntryInputType;
   ai_metadata: Record<string, unknown>;
   deleted_at: string | null;
@@ -40,6 +50,7 @@ export interface UpdateEntryInput {
   priority?: EntryPriority | null;
   is_completed?: boolean;
   deleted_at?: string | null;
+  reminders?: ReminderOption[];
 }
 
 export interface ClassifyResult {
