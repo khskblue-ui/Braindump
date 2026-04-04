@@ -161,22 +161,31 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
     toast.success('리마인드가 설정되었습니다. (10분 전 알림)');
   };
 
+  const priorityConfig = {
+    high: { label: '높음', color: '#EF4444' },
+    medium: { label: '보통', color: '#EAB308' },
+    low: { label: '낮음', color: '#22C55E' },
+  } as const;
+
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>항목 편집</span>
-            <span className="text-xs text-muted-foreground font-normal">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto !p-0">
+        {/* Gradient header */}
+        <div className="bg-gradient-to-r from-blue-50 via-purple-50/80 to-pink-50 px-4 pt-4 pb-3 rounded-t-xl border-b border-border/50">
+          <DialogHeader>
+            <DialogTitle className="pr-8">
+              항목 편집
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(entry.created_at), {
                 addSuffix: true,
                 locale: ko,
               })}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
+            </p>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 px-4 pt-2 pb-4">
           {entry.image_url && (
             <img
               src={entry.image_url}
@@ -201,7 +210,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="AI가 자동 생성한 제목입니다. 수정 가능합니다."
-              className="mt-1"
+              className="mt-1 focus-visible:ring-blue-400/50"
             />
             <p className="text-xs text-muted-foreground mt-1">
               AI가 자동 생성한 제목입니다. 수정 가능합니다.
@@ -214,30 +223,36 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             <Textarea
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
-              className="mt-1"
+              className="mt-1 focus-visible:ring-blue-400/50"
               rows={3}
             />
           </div>
 
-          {/* Category */}
+          {/* Category - colored badge style matching EntryCard */}
           <div>
             <label className="text-sm font-medium">카테고리</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {CATEGORIES.map((cat) => (
-                <Badge
+                <button
                   key={cat.value}
-                  variant={category === cat.value ? 'default' : 'outline'}
-                  className="cursor-pointer"
+                  type="button"
                   onClick={() => setCategory(cat.value)}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all ${
+                    category === cat.value
+                      ? ''
+                      : 'opacity-60 hover:opacity-100'
+                  }`}
+                  style={{
+                    backgroundColor: `${cat.color}18`,
+                    color: cat.color,
+                    outlineColor: category === cat.value ? cat.color : undefined,
+                    outlineWidth: category === cat.value ? '2px' : undefined,
+                    outlineOffset: '1px',
+                    outlineStyle: category === cat.value ? 'solid' : undefined,
+                  }}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      className="w-2 h-2 rounded-full inline-block flex-shrink-0"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                    {cat.label}
-                  </span>
-                </Badge>
+                  {cat.label}
+                </button>
               ))}
             </div>
           </div>
@@ -249,7 +264,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="태그1, 태그2, 태그3"
-              className="mt-1"
+              className="mt-1 focus-visible:ring-blue-400/50"
             />
           </div>
 
@@ -261,7 +276,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="주제명"
-                className="mt-1"
+                className="mt-1 focus-visible:ring-blue-400/50"
               />
             </div>
           )}
@@ -275,7 +290,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
                   type="datetime-local"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 focus-visible:ring-blue-400/50"
                 />
               </div>
               <Button
@@ -290,48 +305,64 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             </div>
           )}
 
-          {/* Priority */}
+          {/* Priority - colored dot style, no emoji */}
           <div>
             <label className="text-sm font-medium">우선순위</label>
             <div className="flex gap-1.5 mt-1">
               {(['high', 'medium', 'low'] as const).map((p) => (
-                <Badge
+                <button
                   key={p}
-                  variant={priority === p ? 'default' : 'outline'}
-                  className="cursor-pointer"
+                  type="button"
                   onClick={() => setPriority(priority === p ? '' : p)}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                    priority === p
+                      ? ''
+                      : 'opacity-60 hover:opacity-100'
+                  }`}
+                  style={{
+                    backgroundColor: `${priorityConfig[p].color}18`,
+                    color: priorityConfig[p].color,
+                    outlineColor: priority === p ? priorityConfig[p].color : undefined,
+                    outlineWidth: priority === p ? '2px' : undefined,
+                    outlineOffset: '1px',
+                    outlineStyle: priority === p ? 'solid' : undefined,
+                  }}
                 >
-                  {p === 'high' ? '🔴 높음' : p === 'medium' ? '🟡 보통' : '🟢 낮음'}
-                </Badge>
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: priorityConfig[p].color }}
+                  />
+                  {priorityConfig[p].label}
+                </button>
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Actions */}
-          <div className="flex justify-between pt-2">
-            <div className="flex gap-2">
-              <Button variant="destructive" size="sm" onClick={handleDelete}>
-                <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
-                삭제
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReclassify}
-                disabled={reclassifying}
-              >
-                <Sparkles className="h-4 w-4 mr-1" strokeWidth={1.5} />
-                {reclassifying ? '분류 중...' : 'AI 재분류'}
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onClose}>
-                취소
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving ? '저장 중...' : '저장'}
-              </Button>
-            </div>
+        {/* Footer with separator */}
+        <div className="flex justify-between px-4 py-3 border-t border-border/50 bg-muted/30 rounded-b-xl">
+          <div className="flex gap-2">
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
+              삭제
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReclassify}
+              disabled={reclassifying}
+            >
+              <Sparkles className="h-4 w-4 mr-1" strokeWidth={1.5} />
+              {reclassifying ? '분류 중...' : 'AI 재분류'}
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              취소
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? '저장 중...' : '저장'}
+            </Button>
           </div>
         </div>
       </DialogContent>

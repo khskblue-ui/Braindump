@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { classifyText } from '@/lib/classify';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import { join } from 'path';
 
-// Disable worker for serverless environment
-GlobalWorkerOptions.workerSrc = '';
+// Point worker to actual file for serverless environment
+GlobalWorkerOptions.workerSrc = join(process.cwd(), 'node_modules/pdfjs-dist/build/pdf.worker.mjs');
 
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_PAGES = 50;
@@ -33,7 +34,15 @@ export async function POST(request: NextRequest) {
 
     // 1. Extract text from PDF using pdfjs-dist
     const buffer = new Uint8Array(await file.arrayBuffer());
-    const pdfDoc = await getDocument({ data: buffer, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
+    const cMapUrl = join(process.cwd(), 'node_modules/pdfjs-dist/cmaps/');
+    const pdfDoc = await getDocument({
+      data: buffer,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+      cMapUrl,
+      cMapPacked: true,
+    }).promise;
     const numPages = Math.min(pdfDoc.numPages, MAX_PAGES);
     const pageTexts: string[] = [];
 
