@@ -40,13 +40,13 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
           <div className="flex-1 min-w-0 space-y-1.5">
             {/* Category + time */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm flex items-center gap-1.5">
-                {cat?.color && (
-                  <span
-                    className="w-2 h-2 rounded-full inline-block flex-shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                )}
+              <span
+                className="text-xs font-medium px-2 py-0.5 rounded-md"
+                style={{
+                  backgroundColor: cat?.color ? `${cat.color}18` : undefined,
+                  color: cat?.color,
+                }}
+              >
                 {cat?.label}
               </span>
               <span className="text-xs text-muted-foreground flex-shrink-0">
@@ -91,7 +91,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
               <div className="flex flex-wrap gap-1">
                 {entry.tags.slice(0, 3).map((tag) => (
                   <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
-                    {tag}
+                    #{tag}
                   </Badge>
                 ))}
                 {entry.tags.length > 3 && (

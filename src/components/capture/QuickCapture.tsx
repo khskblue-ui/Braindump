@@ -134,14 +134,18 @@ export function QuickCapture() {
     setThumbnailUrl(thumbnail);
   };
 
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <div className="space-y-2">
-      <div className="relative">
+      <div className={`relative rounded-xl transition-shadow duration-200 ${isFocused ? 'ring-2 ring-blue-400/50 shadow-md' : ''}`}>
         <Textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           placeholder="생각을 입력하세요... (Enter로 저장, Shift+Enter로 줄바꿈)"
           className="min-h-[80px] pr-24 resize-none"
           disabled={submitting || uploadingPdf}
