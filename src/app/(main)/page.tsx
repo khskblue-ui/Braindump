@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const fetchEntries = useEntryStore((s) => s.fetchEntries);
   const hasMore = useEntryStore((s) => s.hasMore);
   const loadMore = useEntryStore((s) => s.loadMore);
+  const hydrated = useEntryStore((s) => s._hydrated);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('edit');
   const [reclassifying, setReclassifying] = useState(false);
@@ -116,7 +117,7 @@ export default function DashboardPage() {
 
       {/* Entry List */}
       <div className="space-y-2">
-        {loading && entries.length === 0 ? (
+        {!hydrated || (loading && entries.length === 0) ? (
           Array.from({ length: 3 }).map((_, i) => (
             <EntryCardSkeleton key={i} />
           ))

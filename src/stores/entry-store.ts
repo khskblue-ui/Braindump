@@ -51,7 +51,7 @@ export const useEntryStore = create<EntryStore>()(
       _hydrated: false,
 
       setFilter: (filter) => {
-        set({ filter, page: 1, entries: [] });
+        set({ filter, page: 1 });
         get().fetchEntries();
       },
 
@@ -66,8 +66,7 @@ export const useEntryStore = create<EntryStore>()(
         fetchController = new AbortController();
         const { signal } = fetchController;
 
-        const hasCache = get().entries.length > 0;
-        if (!hasCache) set({ loading: true });
+        set({ loading: true });
         try {
           const { filter, page } = get();
           const params = new URLSearchParams();
