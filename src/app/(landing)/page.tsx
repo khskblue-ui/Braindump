@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { HeroDemo } from '@/components/landing/HeroDemo';
+import { InstallButton } from '@/components/landing/InstallButton';
 
 export default function LandingPage() {
   return (
@@ -17,24 +18,7 @@ export default function LandingPage() {
           텍스트, 사진, PDF — 뭐든 던지세요.
         </p>
         <div className="mt-8">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 bg-black text-white px-8 py-3.5 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors"
-          >
-            무료로 시작하기
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </Link>
+          <InstallButton />
         </div>
 
         <div className="mt-16">
