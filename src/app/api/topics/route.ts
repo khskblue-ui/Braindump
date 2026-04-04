@@ -10,7 +10,7 @@ export async function GET() {
     .from('entries')
     .select('topic, created_at')
     .eq('user_id', user.id)
-    .eq('category', 'knowledge')
+    .contains('categories', ['knowledge'])
     .not('topic', 'is', null)
     .order('created_at', { ascending: false });
 

@@ -89,11 +89,11 @@ export const CATEGORY_MAP = Object.fromEntries(
 ) as Record<EntryCategory, (typeof CATEGORIES)[number]>;
 
 /** Get the primary (first) category of an entry */
-export function primaryCategory(entry: { categories: EntryCategory[] }): EntryCategory {
-  return entry.categories[0] || 'inbox';
+export function primaryCategory(entry: { categories?: EntryCategory[] }): EntryCategory {
+  return entry.categories?.[0] || 'inbox';
 }
 
 /** Check if entry belongs to a category */
-export function hasCategory(entry: { categories: EntryCategory[] }, cat: EntryCategory): boolean {
-  return entry.categories.includes(cat);
+export function hasCategory(entry: { categories?: EntryCategory[] }, cat: EntryCategory): boolean {
+  return entry.categories?.includes(cat) ?? false;
 }
