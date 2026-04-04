@@ -8,11 +8,12 @@ const client = new Anthropic({
 });
 
 function buildSystemPrompt(): string {
-  const now = new Date();
+  // Use Korean timezone (KST, UTC+9) for correct date/day-of-week
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   const days = ['일', '월', '화', '수', '목', '금', '토'];
   const todayStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
 
-  return `오늘은 ${todayStr}입니다. 사용자가 입력한 텍스트 또는 이미지를 분석하여 JSON으로 분류하세요.
+  return `오늘은 ${todayStr}입니다. 모든 날짜와 요일은 한국 시간(KST, UTC+9) 기준으로 판단하세요. 사용자가 입력한 텍스트 또는 이미지를 분석하여 JSON으로 분류하세요.
 이미지가 포함된 경우 이미지 내용을 읽고 extracted_text에 추출한 텍스트를 포함하세요.
 
 ## 분류 판단 기준 (순서대로 적용)
@@ -79,7 +80,7 @@ function buildSystemPrompt(): string {
   "topic": "주제명 (knowledge 포함 시만, 그 외 null)",
   "extracted_text": "이미지에서 추출한 텍스트 (이미지인 경우만, 그 외 null)",
   "summary": "간결한 명사구 제목",
-  "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null)",
+  "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null). 반드시 한국 시간(KST, +09:00) 기준. 예: 2026-04-10T15:00:00+09:00",
   "priority": "high" | "medium" | "low" | null,
   "related_topics": ["관련 주제"]
 }`;
