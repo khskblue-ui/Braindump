@@ -190,3 +190,108 @@ input, textarea, [contenteditable="true"] {
 .animate-fade-in-up-delay-3 {
   animation: fade-in-up 0.8s ease-out 0.5s both;
 }
+
+/* ---- Landing: HeroDemo & FeatureHighlight animations ---- */
+
+/* Voice waveform bars */
+@keyframes voice-bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+.animate-voice-bar {
+  animation: voice-bar 0.6s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+/* Badge pop-in */
+@keyframes badge-pop {
+  0% { opacity: 0; transform: scale(0.6); }
+  70% { transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-badge-pop {
+  animation: badge-pop 0.35s ease-out both;
+}
+
+/* Pin drop */
+@keyframes pin-drop {
+  0% { opacity: 0; transform: translateY(-8px); }
+  60% { transform: translateY(2px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-pin-drop {
+  animation: pin-drop 0.4s ease-out 0.3s both;
+}
+
+/* Fast fade-in */
+@keyframes fade-in-fast {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in-fast {
+  animation: fade-in-fast 0.3s ease-out both;
+}
+
+/* Feature tab switch */
+@keyframes feature-switch {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-feature-switch {
+  animation: feature-switch 0.4s ease-out both;
+}
+
+/* Slow ping for mic ring */
+@keyframes ping-slow {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.animate-ping-slow {
+  animation: ping-slow 1.5s ease-out infinite;
+}
+
+/* Text appear (for voice transcription) */
+@keyframes text-appear {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-text-appear {
+  animation: text-appear 0.5s ease-out 1.2s both;
+}
+
+/* Slide in from right (dashboard items) */
+@keyframes slide-in-right {
+  0% { opacity: 0; transform: translateX(16px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease-out both;
+}
+
+/* Card lift (pin feature) */
+@keyframes card-lift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-4px); }
+}
+.animate-card-lift {
+  animation: card-lift 0.5s ease-out 0.2s both;
+}
+
+/* Share arrow bounce */
+@keyframes share-arrow {
+  0%, 100% { transform: translateX(0); opacity: 0.7; }
+  50% { transform: translateX(4px); opacity: 1; }
+}
+.animate-share-arrow {
+  animation: share-arrow 1s ease-in-out infinite;
+}
+
+/* Share receive pulse */
+@keyframes share-receive {
+  0%, 70% { transform: scale(1); }
+  80% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.animate-share-receive {
+  animation: share-receive 1s ease-out infinite;
+}

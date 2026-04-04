@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { HeroDemo } from '@/components/landing/HeroDemo';
+import { FeatureHighlight } from '@/components/landing/FeatureHighlight';
 import { InstallButton } from '@/components/landing/InstallButton';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
 
@@ -16,7 +17,7 @@ export default function LandingPage() {
         <p className="mt-6 text-base sm:text-lg text-gray-500 max-w-md mx-auto leading-relaxed animate-fade-in-up-delay-1">
           일단 쏟아내세요. 정리는 AI가 합니다.
           <br />
-          텍스트, 사진, PDF — 뭐든 던지세요.
+          텍스트, 음성, 사진, PDF — 뭐든 던지세요.
         </p>
         <div className="mt-8 animate-fade-in-up-delay-2">
           <InstallButton />
@@ -111,15 +112,15 @@ export default function LandingPage() {
             <ScrollReveal delay={100}>
               <div className="py-8">
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <h3 className="text-lg sm:text-xl font-bold">즉각적인 입력</h3>
+                  <h3 className="text-lg sm:text-xl font-bold">다양한 입력</h3>
                   <span className="text-sm text-gray-300 font-medium tracking-wider">
                     STEP 1
                   </span>
                 </div>
                 <p className="text-gray-500 leading-relaxed">
-                  앱을 켜면 입력창이 먼저입니다. 제목, 카테고리, 날짜 — 아무것도
-                  고를 필요 없습니다. 텍스트를 치든, 사진을 찍든, PDF를 올리든.
-                  그냥 쏟아내세요.
+                  텍스트, 음성, 사진, PDF — 방법을 고르지 마세요. 말하든 쓰든
+                  찍든, 앱을 켜면 입력창이 먼저입니다. 다른 앱에서 공유 한 번이면
+                  바로 저장됩니다.
                 </p>
               </div>
               <hr className="border-gray-200" />
@@ -128,14 +129,14 @@ export default function LandingPage() {
             <ScrollReveal delay={200}>
               <div className="py-8">
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <h3 className="text-lg sm:text-xl font-bold">AI 자동 분류</h3>
+                  <h3 className="text-lg sm:text-xl font-bold">AI 멀티 분류</h3>
                   <span className="text-sm text-gray-300 font-medium tracking-wider">
                     STEP 2
                   </span>
                 </div>
                 <p className="text-gray-500 leading-relaxed">
-                  할 일, 일정, 아이디어, 메모, 지식. AI가 문맥을 파악하여 5가지
-                  카테고리로 자동 태깅하고 최적의 형태로 변환합니다.
+                  하나의 기록이 할 일이면서 일정일 수 있습니다. AI가 문맥을
+                  파악하여 복수 카테고리, 우선순위, 태그를 자동으로 붙여줍니다.
                 </p>
               </div>
               <hr className="border-gray-200" />
@@ -144,14 +145,15 @@ export default function LandingPage() {
             <ScrollReveal delay={300}>
               <div className="py-8">
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <h3 className="text-lg sm:text-xl font-bold">캘린더 연동</h3>
+                  <h3 className="text-lg sm:text-xl font-bold">스마트 대시보드</h3>
                   <span className="text-sm text-gray-300 font-medium tracking-wider">
                     STEP 3
                   </span>
                 </div>
                 <p className="text-gray-500 leading-relaxed">
-                  일정과 할 일은 캘린더와 자동 연동됩니다. 적어두고 잊어버리지
-                  않도록 적절한 타이밍에 알아서 리마인드 해줍니다.
+                  오늘 할 일, 마감 임박 일정, 중요 항목이 한눈에 정리됩니다.
+                  핀 고정으로 놓치면 안 될 것들을 항상 위에 두세요.
+                  리마인더가 적절한 타이밍에 알려줍니다.
                 </p>
               </div>
             </ScrollReveal>
@@ -159,66 +161,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Use Case Section */}
+      {/* Feature Highlight Section */}
       <section className="bg-gray-50 px-6 py-20 sm:py-24">
-        <div className="max-w-3xl mx-auto">
-          <ScrollReveal>
-            <p className="text-2xl sm:text-3xl md:text-4xl font-bold mb-14">
-              # Use Cases
-            </p>
-          </ScrollReveal>
-
-          <div className="grid sm:grid-cols-3 gap-8">
-            {[
-              {
-                num: '01',
-                title: '회의 중',
-                desc: '떠오르는 대로 하나씩 던져두세요. \u201c디자인 시안 월요일까지\u201d는 할 일로, \u201c예산 500만 원 확정\u201d은 메모로, 각각 알아서 정리됩니다.',
-              },
-              {
-                num: '02',
-                title: '이동 중',
-                desc: '갑자기 떠오른 사이드 프로젝트 아이디어 \u2014 한 줄만 적어두면 아이디어에 안착. 날아가지 않게 즉시 저장됩니다.',
-              },
-              {
-                num: '03',
-                title: '취침 전',
-                desc: '오늘의 잔상과 내일의 할 일로 복잡한 머릿속을 모두 비워내세요. 가벼운 마음으로 잠들고 정돈된 아침을 맞이하세요.',
-              },
-            ].map((item, i) => (
-              <ScrollReveal key={item.num} delay={i * 150}>
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs text-gray-400 tracking-wider uppercase">
-                      Scenario {item.num}
-                    </span>
-                    <span className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-300">
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M7 17L17 7M17 7H7M17 7v10" />
-                      </svg>
-                    </span>
-                  </div>
-                  <hr className="border-gray-300 mb-4" />
-                  <h3 className="text-lg sm:text-xl font-bold mb-3">
-                    {item.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">
-                    {item.desc}
-                  </p>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
+        <FeatureHighlight />
       </section>
 
       {/* CTA Section */}
