@@ -1,25 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Share, PlusSquare, MoreVertical, Download, Check } from 'lucide-react';
-
-type Platform = 'ios' | 'android' | 'desktop';
-
-function detectPlatform(): Platform {
-  if (typeof navigator === 'undefined') return 'desktop';
-  const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
-  if (/Android/.test(ua)) return 'android';
-  return 'desktop';
-}
-
-function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
+import { createPortal } from 'react-dom';
+import { X, Share, PlusSquare, MoreVertical, Download, Check, Copy, ExternalLink } from 'lucide-react';
+import { detectBrowserContext, isStandalone, type BrowserContext } from '@/lib/browser-detect';
 
 interface InstallGuideModalProps {
   open: boolean;
@@ -27,11 +11,12 @@ interface InstallGuideModalProps {
 }
 
 export function InstallGuideModal({ open, onClose }: InstallGuideModalProps) {
-  const [platform, setPlatform] = useState<Platform>('ios');
+  const [browserCtx, setBrowserCtx] = useState<BrowserContext>({ type: 'desktop' });
   const [installed, setInstalled] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    setPlatform(detectPlatform());
+    setBrowserCtx(detectBrowserContext());
     setInstalled(isStandalone());
   }, []);
 
@@ -39,41 +24,84 @@ export function InstallGuideModal({ open, onClose }: InstallGuideModalProps) {
 
   if (installed) {
     return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-        <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-        <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md mx-auto p-6 pb-8 z-10">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100"
-          >
-            <X className="h-5 w-5 text-gray-400" />
-          </button>
-          <div className="text-center pt-4">
-            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-              <Check className="h-6 w-6 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold mb-2">이미 설치되어 있습니다</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              BrainDump가 홈 화면에 설치되어 있습니다.
-            </p>
-            <a
-              href="/login"
-              className="inline-flex items-center gap-2 bg-black text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors"
-            >
-              로그인하러 가기
-            </a>
+      <ModalShell onClose={onClose}>
+        <div className="text-center pt-4">
+          <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+            <Check className="h-6 w-6 text-green-600" />
           </div>
+          <h2 className="text-xl font-bold mb-2">이미 설치되어 있습니다</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            BrainDump가 홈 화면에 설치되어 있습니다.
+          </p>
+          <a
+            href="/login"
+            className="inline-flex items-center gap-2 bg-black text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            로그인하러 가기
+          </a>
         </div>
-      </div>
+      </ModalShell>
     );
   }
 
+  // In-app browser or non-Safari iOS → redirect to external browser
+  if (browserCtx.type === 'inapp' || browserCtx.type === 'ios-non-safari') {
+    return (
+      <ModalShell onClose={onClose}>
+        <div className="px-6 pt-4 pb-8">
+          <InAppGuide browserCtx={browserCtx} copied={copied} setCopied={setCopied} />
+        </div>
+      </ModalShell>
+    );
+  }
+
+  // Normal Safari / Android Chrome / Desktop
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
+    <ModalShell onClose={onClose} title="앱 설치하기">
+      <div className="px-6 pt-4 pb-8">
+        {browserCtx.type === 'ios-safari' && <IOSGuide />}
+        {browserCtx.type === 'android' && <AndroidGuide />}
+        {browserCtx.type === 'desktop' && <DesktopGuide />}
+
+        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+          <p className="text-xs text-gray-400 mb-3">이미 설치하셨나요?</p>
+          <a
+            href="/login"
+            className="text-sm font-medium text-black underline underline-offset-4"
+          >
+            로그인하러 가기
+          </a>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ─── Modal Shell ─── */
+
+function ModalShell({
+  children,
+  onClose,
+  title,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  title?: string;
+}) {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md mx-auto z-10 max-h-[85vh] overflow-y-auto text-left">
-        <div className="sticky top-0 bg-white rounded-t-2xl border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">앱 설치하기</h2>
+        <div className="sticky top-0 bg-white rounded-t-2xl border-b border-gray-100 px-6 py-4 flex items-center justify-between z-20">
+          <h2 className="text-lg font-bold">{title || '앱 설치하기'}</h2>
           <button
             onClick={onClose}
             className="p-1 rounded-full hover:bg-gray-100"
@@ -81,55 +109,161 @@ export function InstallGuideModal({ open, onClose }: InstallGuideModalProps) {
             <X className="h-5 w-5 text-gray-400" />
           </button>
         </div>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
 
-        <div className="px-6 pt-4 pb-8">
-          {/* Platform tabs */}
-          {platform !== 'desktop' && (
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setPlatform('ios')}
-                className={`flex-1 text-sm font-medium py-2 rounded-lg transition-colors ${
-                  platform === 'ios'
-                    ? 'bg-black text-white'
-                    : 'bg-gray-100 text-gray-500'
-                }`}
-              >
-                iPhone
-              </button>
-              <button
-                onClick={() => setPlatform('android')}
-                className={`flex-1 text-sm font-medium py-2 rounded-lg transition-colors ${
-                  platform === 'android'
-                    ? 'bg-black text-white'
-                    : 'bg-gray-100 text-gray-500'
-                }`}
-              >
-                Android
-              </button>
-            </div>
-          )}
+/* ─── In-App Browser / Non-Safari iOS Guide ─── */
 
-          {platform === 'ios' && <IOSGuide />}
-          {platform === 'android' && <AndroidGuide />}
-          {platform === 'desktop' && <DesktopGuide />}
+function InAppGuide({
+  browserCtx,
+  copied,
+  setCopied,
+}: {
+  browserCtx: BrowserContext;
+  copied: boolean;
+  setCopied: (v: boolean) => void;
+}) {
+  const isKakao = browserCtx.type === 'inapp' && browserCtx.brand === 'kakaotalk';
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const targetBrowser = isIOS ? 'Safari' : 'Chrome';
 
-          {/* Login link */}
-          <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-            <p className="text-xs text-gray-400 mb-3">
-              이미 설치하셨나요?
-            </p>
-            <a
-              href="/login"
-              className="text-sm font-medium text-black underline underline-offset-4"
-            >
-              로그인하러 가기
-            </a>
-          </div>
+  const handleOpenExternal = () => {
+    if (isKakao) {
+      window.location.href =
+        'kakaotalk://web/openExternal?url=' + encodeURIComponent(window.location.href);
+    }
+  };
+
+  const handleCopy = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = url;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // silent fail
+    }
+  };
+
+  const brandName =
+    browserCtx.type === 'inapp'
+      ? {
+          kakaotalk: '카카오톡',
+          naver: '네이버 앱',
+          line: 'LINE',
+          facebook: 'Facebook',
+          instagram: 'Instagram',
+          unknown: '현재 브라우저',
+        }[browserCtx.brand]
+      : '현재 브라우저';
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center py-2">
+        <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+          <ExternalLink className="h-6 w-6 text-amber-600" />
         </div>
+        <h3 className="font-bold text-lg mb-2">
+          {targetBrowser}에서 열어주세요
+        </h3>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          {brandName}에서는 앱 설치가 지원되지 않습니다.
+          <br />
+          {targetBrowser}에서 열면 홈 화면에 추가할 수 있습니다.
+        </p>
+      </div>
+
+      {/* KakaoTalk: one-click open */}
+      {isKakao && (
+        <button
+          onClick={handleOpenExternal}
+          className="w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
+          <ExternalLink className="h-4 w-4" />
+          {targetBrowser}에서 열기
+        </button>
+      )}
+
+      {/* Other in-app / non-Safari: copy URL */}
+      {!isKakao && (
+        <div className="space-y-3">
+          <StepItem
+            step={1}
+            icon={
+              <span className="flex items-center justify-center w-6 h-6 rounded bg-gray-100">
+                <Copy className="h-3.5 w-3.5 text-gray-600" />
+              </span>
+            }
+            title="주소 복사하기"
+            description="아래 버튼을 눌러 주소를 복사하세요."
+          />
+          <button
+            onClick={handleCopy}
+            className="w-full flex items-center justify-center gap-2 bg-black text-white py-3 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="h-4 w-4" />
+                복사 완료!
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" />
+                주소 복사하기
+              </>
+            )}
+          </button>
+
+          <StepItem
+            step={2}
+            icon={
+              <span className="flex items-center justify-center w-6 h-6 rounded bg-blue-100">
+                <ExternalLink className="h-3.5 w-3.5 text-blue-600" />
+              </span>
+            }
+            title={`${targetBrowser}에서 열기`}
+            description={`${targetBrowser}를 열고 주소창에 붙여넣기 하세요.`}
+          />
+
+          <StepItem
+            step={3}
+            icon={
+              <span className="flex items-center justify-center w-6 h-6 rounded bg-green-100">
+                <Download className="h-3.5 w-3.5 text-green-600" />
+              </span>
+            }
+            title="앱 설치하기"
+            description={`${targetBrowser}에서 열면 앱을 홈 화면에 설치할 수 있습니다.`}
+          />
+        </div>
+      )}
+
+      <div className="bg-gray-50 rounded-xl p-4 text-center">
+        <p className="text-xs text-gray-400 mb-1">접속 주소</p>
+        <p className="text-sm font-mono font-medium text-gray-700">
+          {typeof window !== 'undefined' ? window.location.host : 'braindump-jet.vercel.app'}
+        </p>
       </div>
     </div>
   );
 }
+
+/* ─── Step Item ─── */
 
 function StepItem({
   step,
@@ -157,6 +291,8 @@ function StepItem({
     </div>
   );
 }
+
+/* ─── iOS Safari Guide ─── */
 
 function IOSGuide() {
   return (
@@ -197,15 +333,11 @@ function IOSGuide() {
         title="추가 완료"
         description="오른쪽 상단의 '추가'를 탭하면 홈 화면에 BrainDump 앱이 생깁니다."
       />
-
-      <div className="bg-amber-50 rounded-xl p-4">
-        <p className="text-xs text-amber-700 leading-relaxed">
-          <strong>Safari에서만 가능합니다.</strong> Chrome이나 다른 브라우저에서는 홈 화면 추가가 지원되지 않습니다. 현재 Safari가 아니라면, 주소를 복사해서 Safari에서 열어주세요.
-        </p>
-      </div>
     </div>
   );
 }
+
+/* ─── Android Chrome Guide ─── */
 
 function AndroidGuide() {
   return (
@@ -250,6 +382,8 @@ function AndroidGuide() {
   );
 }
 
+/* ─── Desktop Guide ─── */
+
 function DesktopGuide() {
   return (
     <div className="space-y-6">
@@ -280,7 +414,7 @@ function DesktopGuide() {
       <div className="bg-gray-50 rounded-xl p-4 text-center">
         <p className="text-xs text-gray-400 mb-2">접속 주소</p>
         <p className="text-sm font-mono font-medium text-gray-700">
-          braindump-app.vercel.app
+          braindump-jet.vercel.app
         </p>
       </div>
     </div>

@@ -106,7 +106,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
             {entry.category === 'schedule' && entry.due_date && (
               <div className="flex items-center gap-1 text-xs text-orange-600">
                 <Clock className="h-3 w-3" />
-                <span>{format(new Date(entry.due_date), 'M월 d일 HH:mm', { locale: ko })}</span>
+                <span>{format(new Date(entry.due_date), 'M월 d일 (EEE) HH:mm', { locale: ko })}</span>
               </div>
             )}
           </div>

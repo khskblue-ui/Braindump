@@ -64,12 +64,16 @@ export async function GET(request: NextRequest) {
   const limit = isNaN(rawLimit) || rawLimit < 1 ? 20 : Math.min(rawLimit, 100);
   const offset = (page - 1) * limit;
 
+  const isSchedule = category === 'schedule';
+
   let dbQuery = supabase
     .from('entries')
     .select('*')
     .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false });
+    .is('deleted_at', null);
+
+  // Always fetch with created_at DESC; schedule sorting done in JS after fetch
+  dbQuery = dbQuery.order('created_at', { ascending: false });
 
   if (category && category !== 'all') {
     dbQuery = dbQuery.eq('category', category);
@@ -142,8 +146,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '항목 조회에 실패했습니다.' }, { status: 500 });
   }
 
-  const hasMore = (entries?.length ?? 0) > limit;
-  const trimmedEntries = hasMore ? entries!.slice(0, limit) : (entries ?? []);
+  let sortedEntries = entries ?? [];
+
+  // Schedule: upcoming (due_date ASC) first, no due_date in middle, past (due_date DESC) at end
+  if (isSchedule && sortedEntries.length > 0) {
+    const now = Date.now();
+    const upcoming = sortedEntries
+      .filter((e) => e.due_date && new Date(e.due_date).getTime() >= now)
+      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+    const past = sortedEntries
+      .filter((e) => e.due_date && new Date(e.due_date).getTime() < now)
+      .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+    const noDue = sortedEntries.filter((e) => !e.due_date);
+    sortedEntries = [...upcoming, ...noDue, ...past];
+  }
+
+  const hasMore = sortedEntries.length > limit;
+  const trimmedEntries = hasMore ? sortedEntries.slice(0, limit) : sortedEntries;
 
   // Generate signed URLs for image entries
   const entriesWithSignedUrls = trimmedEntries.length > 0 ? await attachSignedUrls(supabase, trimmedEntries) : [];

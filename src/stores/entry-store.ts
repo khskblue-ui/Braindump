@@ -153,21 +153,37 @@ export const useEntryStore = create<EntryStore>()(
         if (!entry) return;
 
         if (!entry.is_completed) {
-          // Completing a task: soft delete + undo toast
-          await get().updateEntry(id, { is_completed: true, deleted_at: new Date().toISOString() });
+          // Optimistic: immediately show check mark
           set((state) => ({
-            entries: state.entries.filter((e) => e.id !== id),
+            entries: state.entries.map((e) =>
+              e.id === id ? { ...e, is_completed: true } : e
+            ),
           }));
-          toast('할 일을 완료했습니다.', {
-            action: {
-              label: '되돌리기',
-              onClick: async () => {
-                await get().updateEntry(id, { is_completed: false, deleted_at: null });
-                get().fetchEntries();
+
+          // Then persist + remove from list after short delay
+          try {
+            await get().updateEntry(id, { is_completed: true, deleted_at: new Date().toISOString() });
+            set((state) => ({
+              entries: state.entries.filter((e) => e.id !== id),
+            }));
+            toast('할 일을 완료했습니다.', {
+              action: {
+                label: '되돌리기',
+                onClick: async () => {
+                  await get().updateEntry(id, { is_completed: false, deleted_at: null });
+                  get().fetchEntries();
+                },
               },
-            },
-            duration: 5000,
-          });
+              duration: 5000,
+            });
+          } catch {
+            // Rollback on failure
+            set((state) => ({
+              entries: state.entries.map((e) =>
+                e.id === id ? { ...e, is_completed: false } : e
+              ),
+            }));
+          }
         } else {
           // Uncompleting: just toggle
           await get().updateEntry(id, { is_completed: false });
