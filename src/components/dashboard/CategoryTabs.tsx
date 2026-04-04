@@ -41,7 +41,7 @@ export function CategoryTabs() {
           style={{
             backgroundColor: `${cat.color}${current === cat.value ? '25' : '18'}`,
             color: cat.color,
-            boxShadow: current === cat.value ? `0 0 0 2px ${cat.color}40` : undefined,
+            boxShadow: current === cat.value ? `0 0 0 2px ${cat.color}40` : 'none',
           }}
         >
           {cat.label}
