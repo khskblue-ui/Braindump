@@ -88,7 +88,10 @@ export async function POST(request: NextRequest) {
 
     if (insertError || !entry) {
       console.error('PDF entry creation error:', insertError);
-      return NextResponse.json({ error: '항목 생성에 실패했습니다.' }, { status: 500 });
+      return NextResponse.json(
+        { error: `항목 생성에 실패했습니다: ${insertError?.message || 'unknown'}`, code: insertError?.code, details: insertError?.details },
+        { status: 500 }
+      );
     }
 
     // 3. AI classify + summarize (background-style but within same request)
