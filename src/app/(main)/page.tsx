@@ -14,9 +14,13 @@ import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Entry } from '@/types';
 
-// Lazy load heavy modal component (performance: reduce initial bundle)
+// Lazy load heavy modal components (performance: reduce initial bundle)
 const EntryEditModal = dynamic(
   () => import('@/components/entry/EntryEditModal').then((m) => ({ default: m.EntryEditModal })),
+  { ssr: false }
+);
+const EntryViewerModal = dynamic(
+  () => import('@/components/entry/EntryViewerModal').then((m) => ({ default: m.EntryViewerModal })),
   { ssr: false }
 );
 
@@ -27,7 +31,15 @@ export default function DashboardPage() {
   const hasMore = useEntryStore((s) => s.hasMore);
   const loadMore = useEntryStore((s) => s.loadMore);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('edit');
   const [reclassifying, setReclassifying] = useState(false);
+
+  const openEntry = (entry: Entry) => {
+    setSelectedEntry(entry);
+    // PDF or long extracted text → viewer, otherwise → edit
+    const hasLongContent = entry.input_type === 'pdf' || (entry.extracted_text && entry.extracted_text.length > 200);
+    setModalMode(hasLongContent ? 'view' : 'edit');
+  };
 
   const filter = useEntryStore((s) => s.filter);
   // M3: useMemo to avoid recalculating on every render
@@ -119,7 +131,7 @@ export default function DashboardPage() {
               <EntryCard
                 key={entry.id}
                 entry={entry}
-                onClick={() => setSelectedEntry(entry)}
+                onClick={() => openEntry(entry)}
               />
             ))}
             {hasMore && (
@@ -133,11 +145,21 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Edit Modal (lazy loaded) */}
-      {selectedEntry && (
+      {/* Viewer Modal for PDF/long content */}
+      {selectedEntry && modalMode === 'view' && (
+        <EntryViewerModal
+          entry={selectedEntry}
+          open
+          onClose={() => setSelectedEntry(null)}
+          onEdit={() => setModalMode('edit')}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {selectedEntry && modalMode === 'edit' && (
         <EntryEditModal
           entry={selectedEntry}
-          open={!!selectedEntry}
+          open
           onClose={() => setSelectedEntry(null)}
         />
       )}
