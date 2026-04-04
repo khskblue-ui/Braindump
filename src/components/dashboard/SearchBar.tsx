@@ -11,11 +11,11 @@ export function SearchBar() {
   const filter = useEntryStore((s) => s.filter);
   const [value, setValue] = useState(filter.query || '');
   const lastValueRef = useRef<string>('');
-  const filterRef = useRef(filter);
-  filterRef.current = filter;
 
   const applySearch = useCallback((trimmed: string) => {
-    setFilter({ ...filterRef.current, query: trimmed || undefined, tag: undefined });
+    // Read latest filter directly from store to avoid stale ref
+    const current = useEntryStore.getState().filter;
+    setFilter({ ...current, query: trimmed || undefined, tag: undefined });
   }, [setFilter]);
 
   useEffect(() => {
@@ -37,7 +37,8 @@ export function SearchBar() {
   const handleClear = () => {
     setValue('');
     lastValueRef.current = '';
-    setFilter({ ...filterRef.current, query: undefined, tag: undefined });
+    const current = useEntryStore.getState().filter;
+    setFilter({ ...current, query: undefined, tag: undefined });
   };
 
   return (
