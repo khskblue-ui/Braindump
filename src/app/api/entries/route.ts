@@ -82,7 +82,55 @@ export async function GET(request: NextRequest) {
   if (query) {
     const q = query.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const tagQuery = query.replace(/^#/, '');
-    dbQuery = dbQuery.or(`raw_text.ilike.%${q}%,summary.ilike.%${q}%,extracted_text.ilike.%${q}%,tags.cs.["${tagQuery}"]`);
+
+    // Two separate queries: text search + tag search, merged client-side
+    // because PostgREST .or() doesn't reliably support .cs on JSONB arrays
+    const textQuery = supabase
+      .from('entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .or(`raw_text.ilike.%${q}%,summary.ilike.%${q}%,extracted_text.ilike.%${q}%`)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit);
+
+    if (category && category !== 'all') {
+      textQuery.eq('category', category);
+    }
+
+    const tagSearchQuery = supabase
+      .from('entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .contains('tags', [tagQuery])
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit);
+
+    if (category && category !== 'all') {
+      tagSearchQuery.eq('category', category);
+    }
+
+    const [textResult, tagResult] = await Promise.all([textQuery, tagSearchQuery]);
+
+    if (textResult.error || tagResult.error) {
+      console.error('Search error:', textResult.error || tagResult.error);
+      return NextResponse.json({ error: '검색에 실패했습니다.' }, { status: 500 });
+    }
+
+    // Merge and deduplicate by id, sort by created_at desc
+    const merged = new Map<string, typeof textResult.data[0]>();
+    for (const e of [...(textResult.data || []), ...(tagResult.data || [])]) {
+      if (!merged.has(e.id)) merged.set(e.id, e);
+    }
+    const allEntries = [...merged.values()]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const hasMore = allEntries.length > limit;
+    const trimmedEntries = hasMore ? allEntries.slice(0, limit) : allEntries;
+    const entriesWithSignedUrls = trimmedEntries.length > 0 ? await attachSignedUrls(supabase, trimmedEntries) : [];
+
+    return NextResponse.json({ entries: entriesWithSignedUrls, hasMore, page });
   }
 
   dbQuery = dbQuery.range(offset, offset + limit); // request limit+1 items
