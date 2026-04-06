@@ -380,20 +380,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return jsonResponse({ error: "서버 설정 오류입니다." }, 500);
   }
 
-  // Use the user's JWT so RLS applies; use service-role only where needed
-  const supabaseUser = createClient(supabaseUrl, serviceRoleKey, {
-    global: { headers: { Authorization: `Bearer ${jwt}` } },
-  });
+  // Service-role client for admin operations (bypasses RLS)
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-  // Verify the token and obtain the user
+  // Verify the token using service-role client (works even if JWT is near expiry)
   const {
     data: { user },
     error: userError,
-  } = await supabaseUser.auth.getUser(jwt);
+  } = await supabaseAdmin.auth.getUser(jwt);
 
   if (userError || !user) {
+    console.error("Auth error:", userError?.message, "JWT prefix:", jwt.slice(0, 20));
     return jsonResponse({ error: "유효하지 않은 인증 토큰입니다." }, 401);
   }
+
+  // User-scoped client with RLS for data queries
+  const supabaseUser = createClient(supabaseUrl, serviceRoleKey, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
 
   // ── Parse request body ──────────────────────────────────────────────────
   let entry_id: string;
