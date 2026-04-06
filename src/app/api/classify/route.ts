@@ -74,17 +74,15 @@ async function classifySingleEntry(
     const imageBuffer = await imageResponse.arrayBuffer();
     const base64 = Buffer.from(imageBuffer).toString('base64');
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    if (rawText.length > MAX_TEXT_LENGTH) return null;
     result = await classifyImage(
       base64,
       contentType as 'image/jpeg' | 'image/png' | 'image/webp',
-      rawText || undefined
+      rawText ? rawText.slice(0, MAX_TEXT_LENGTH) : undefined
     );
   } else {
     const textToClassify = [rawText, (entry.extracted_text as string) || ''].filter(Boolean).join('\n\n');
     if (!textToClassify) return null;
-    if (textToClassify.length > MAX_TEXT_LENGTH) return null;
-    result = await classifyText(textToClassify);
+    result = await classifyText(textToClassify.slice(0, MAX_TEXT_LENGTH));
   }
 
   const topic =
@@ -175,10 +173,7 @@ export async function POST(request: NextRequest) {
       const base64 = Buffer.from(imageBuffer).toString('base64');
       const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
       const mediaType = contentType as 'image/jpeg' | 'image/png' | 'image/webp';
-      const rawText = entry.raw_text || '';
-      if (rawText.length > MAX_TEXT_LENGTH) {
-        return NextResponse.json({ error: '텍스트가 너무 깁니다.' }, { status: 400 });
-      }
+      const rawText = (entry.raw_text || '').slice(0, MAX_TEXT_LENGTH);
       result = await classifyImage(base64, mediaType, rawText || undefined, { userPatterns });
     } else {
       // Combine raw_text + extracted_text (from on-device OCR) for text classification
@@ -186,10 +181,7 @@ export async function POST(request: NextRequest) {
       if (!textToClassify) {
         return NextResponse.json({ error: '분류할 내용이 없습니다.' }, { status: 400 });
       }
-      if (textToClassify.length > MAX_TEXT_LENGTH) {
-        return NextResponse.json({ error: '텍스트가 너무 깁니다.' }, { status: 400 });
-      }
-      result = await classifyText(textToClassify, { userPatterns });
+      result = await classifyText(textToClassify.slice(0, MAX_TEXT_LENGTH), { userPatterns });
     }
 
     const topic =

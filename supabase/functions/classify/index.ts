@@ -488,17 +488,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ["image/jpeg", "image/png", "image/webp"].includes(contentType) ? contentType : "image/jpeg"
       ) as "image/jpeg" | "image/png" | "image/webp";
 
-      if (textToClassify.length > MAX_TEXT_LENGTH) {
-        return jsonResponse({ error: "텍스트가 너무 깁니다." }, 400);
-      }
+      // Truncate long text for classification (full text is already stored in DB)
+      const clippedText = textToClassify.length > MAX_TEXT_LENGTH
+        ? textToClassify.slice(0, MAX_TEXT_LENGTH)
+        : textToClassify;
 
-      result = await classifyImage(anthropic, base64, mediaType, textToClassify || undefined, { userPatterns });
+      result = await classifyImage(anthropic, base64, mediaType, clippedText || undefined, { userPatterns });
     } else if (textToClassify) {
       // Text-only classification (includes on-device OCR extracted text from iOS)
-      if (textToClassify.length > MAX_TEXT_LENGTH) {
-        return jsonResponse({ error: "텍스트가 너무 깁니다." }, 400);
-      }
-      result = await classifyText(anthropic, textToClassify, { userPatterns });
+      const clippedText = textToClassify.length > MAX_TEXT_LENGTH
+        ? textToClassify.slice(0, MAX_TEXT_LENGTH)
+        : textToClassify;
+
+      result = await classifyText(anthropic, clippedText, { userPatterns });
     } else {
       return jsonResponse({ error: "분류할 내용이 없습니다." }, 400);
     }
