@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (tag) {
-    dbQuery = dbQuery.or(`tags::text.ilike.%${tag}%`);
+    const sanitizedTag = tag.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    dbQuery = dbQuery.or(`tags::text.ilike.%${sanitizedTag}%`);
   }
 
   if (query) {
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('user_id', user.id)
       .is('deleted_at', null)
-      .or(`tags::text.ilike.%${tagQuery}%`)
+      .or(`tags::text.ilike.%${tagQuery.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit);
 
