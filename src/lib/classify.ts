@@ -36,7 +36,7 @@ function buildCalendarReference(): string {
     lines.join('\n');
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(userPatterns?: string): string {
   // Use Korean timezone (KST, UTC+9) for correct date/day-of-week
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -116,9 +116,9 @@ ${calendar}
   "extracted_text": "이미지에서 추출한 텍스트 (이미지인 경우만, 그 외 null)",
   "summary": "간결한 명사구 제목",
   "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null). 반드시 한국 시간(KST, +09:00) 기준. 예: 2026-04-10T15:00:00+09:00",
-  "priority": "high" | "medium" | "low" | null,
+  "priority": "high" | "medium" | "low" (기본값: "medium". 확실한 긴급/중요 항목만 "high", 중요도가 낮은 항목만 "low"),
   "related_topics": ["관련 주제"]
-}`;
+}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}`;
 }
 
 const classifySchema = z.object({
@@ -144,11 +144,11 @@ const legacyCategorySchema = z.object({
   related_topics: z.array(z.string()).optional(),
 });
 
-export async function classifyText(text: string, options?: { maxTokens?: number }): Promise<ClassifyResult> {
+export async function classifyText(text: string, options?: { maxTokens?: number; userPatterns?: string }): Promise<ClassifyResult> {
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: options?.maxTokens ?? 800,
-    system: buildSystemPrompt(),
+    system: buildSystemPrompt(options?.userPatterns),
     messages: [{ role: 'user', content: text }],
   });
 
@@ -158,7 +158,8 @@ export async function classifyText(text: string, options?: { maxTokens?: number 
 export async function classifyImage(
   imageBase64: string,
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp',
-  text?: string
+  text?: string,
+  options?: { userPatterns?: string }
 ): Promise<ClassifyResult> {
   const content: Anthropic.Messages.ContentBlockParam[] = [
     {
@@ -176,7 +177,7 @@ export async function classifyImage(
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 800,
-    system: buildSystemPrompt(),
+    system: buildSystemPrompt(options?.userPatterns),
     messages: [{ role: 'user', content }],
   });
 
@@ -253,7 +254,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         extracted_text: v.extracted_text ?? undefined,
         summary: v.summary ? fixSummaryDate(v.summary, v.due_date ?? undefined) : undefined,
         due_date: v.due_date ?? undefined,
-        priority: v.priority ?? undefined,
+        priority: v.priority ?? 'medium',
         related_topics: v.related_topics,
       };
     }
@@ -269,7 +270,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         extracted_text: v.extracted_text ?? undefined,
         summary: v.summary ? fixSummaryDate(v.summary, v.due_date ?? undefined) : undefined,
         due_date: v.due_date ?? undefined,
-        priority: v.priority ?? undefined,
+        priority: v.priority ?? 'medium',
         related_topics: v.related_topics,
       };
     }

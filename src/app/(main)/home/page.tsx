@@ -35,11 +35,15 @@ export default function DashboardPage() {
   const hasMore = useEntryStore((s) => s.hasMore);
   const loadMore = useEntryStore((s) => s.loadMore);
   const hydrated = useEntryStore((s) => s._hydrated);
+  const sortMode = useEntryStore((s) => s.sortMode);
+  const setSortMode = useEntryStore((s) => s.setSortMode);
+  const moveEntry = useEntryStore((s) => s.moveEntry);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('edit');
   const [reclassifying, setReclassifying] = useState(false);
 
   const openEntry = (entry: Entry) => {
+    if (sortMode) return;
     setSelectedEntry(entry);
     // PDF or long extracted text → viewer, otherwise → edit
     const hasLongContent = entry.input_type === 'pdf' || (entry.extracted_text && entry.extracted_text.length > 200);
@@ -52,6 +56,8 @@ export default function DashboardPage() {
     () => entries.filter((e) => hasCategory(e, 'inbox')).length,
     [entries]
   );
+
+  const showSortButton = !!(filter.category && (filter.category as string) !== 'all' && filter.category !== 'schedule' && !filter.query);
 
   const handleReclassify = async () => {
     setReclassifying(true);
@@ -78,6 +84,12 @@ export default function DashboardPage() {
     fetchEntries();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Exit sort mode when category changes
+  useEffect(() => {
+    setSortMode(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter.category]);
 
   useEffect(() => {
     const el = loadMoreRef.current;
@@ -121,6 +133,18 @@ export default function DashboardPage() {
               {reclassifying ? '분류 중...' : `미분류 ${inboxCount}개 재분류`}
             </Button>
           )}
+          {showSortButton && (
+            <button
+              onClick={() => setSortMode(!sortMode)}
+              className={`flex-shrink-0 text-xs px-2 py-1 rounded border transition-colors ${
+                sortMode
+                  ? 'border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
+              }`}
+            >
+              {sortMode ? '완료' : '정렬'}
+            </button>
+          )}
         </div>
         <SearchBar />
       </div>
@@ -138,11 +162,16 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {entries.map((entry) => (
+            {entries.map((entry, idx) => (
               <EntryCard
                 key={entry.id}
                 entry={entry}
                 onClick={() => openEntry(entry)}
+                sortMode={sortMode}
+                onMoveUp={idx > 0 ? () => moveEntry(entry.id, 'up') : undefined}
+                onMoveDown={idx < entries.length - 1 ? () => moveEntry(entry.id, 'down') : undefined}
+                isFirst={idx === 0}
+                isLast={idx === entries.length - 1}
               />
             ))}
             {hasMore && (

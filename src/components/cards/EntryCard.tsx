@@ -5,17 +5,22 @@ import { Entry, CATEGORY_MAP, hasCategory, primaryCategory } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Square, Clock, FileText, Pin } from 'lucide-react';
+import { Check, Square, Clock, FileText, Pin, ChevronUp, ChevronDown } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 interface EntryCardProps {
   entry: Entry;
   onClick?: () => void;
+  sortMode?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 // M4: React.memo to prevent unnecessary re-renders
-export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardProps) {
+export const EntryCard = memo(function EntryCard({ entry, onClick, sortMode, onMoveUp, onMoveDown, isFirst, isLast }: EntryCardProps) {
   const toggleComplete = useEntryStore((s) => s.toggleComplete);
   const updateEntry = useEntryStore((s) => s.updateEntry);
   const primary = primaryCategory(entry);
@@ -60,26 +65,49 @@ export const EntryCard = memo(function EntryCard({ entry, onClick }: EntryCardPr
                 })}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
-                <span className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(entry.created_at), {
-                    addSuffix: true,
-                    locale: ko,
-                  })}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    updateEntry(entry.id, { is_pinned: !entry.is_pinned });
-                  }}
-                  className={`p-1.5 -mr-1 rounded transition-colors ${
-                    entry.is_pinned
-                      ? 'text-blue-400'
-                      : 'text-transparent hover:text-muted-foreground/50'
-                  }`}
-                  aria-label={entry.is_pinned ? '핀 해제' : '핀 고정'}
-                >
-                  <Pin className="h-3 w-3" strokeWidth={2} fill={entry.is_pinned ? 'currentColor' : 'none'} />
-                </button>
+                {sortMode ? (
+                  <div className="flex flex-col">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onMoveUp?.(); }}
+                      disabled={isFirst}
+                      className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      aria-label="위로 이동"
+                    >
+                      <ChevronUp className="h-5 w-5" strokeWidth={1.5} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onMoveDown?.(); }}
+                      disabled={isLast}
+                      className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      aria-label="아래로 이동"
+                    >
+                      <ChevronDown className="h-5 w-5" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(entry.created_at), {
+                        addSuffix: true,
+                        locale: ko,
+                      })}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateEntry(entry.id, { is_pinned: !entry.is_pinned });
+                      }}
+                      className={`p-1.5 -mr-1 rounded transition-colors ${
+                        entry.is_pinned
+                          ? 'text-blue-400'
+                          : 'text-transparent hover:text-muted-foreground/50'
+                      }`}
+                      aria-label={entry.is_pinned ? '핀 해제' : '핀 고정'}
+                    >
+                      <Pin className="h-3 w-3" strokeWidth={2} fill={entry.is_pinned ? 'currentColor' : 'none'} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 

@@ -19,6 +19,7 @@ interface EntryStore {
   page: number;
   trashEntries: Entry[];
   _hydrated: boolean;
+  sortMode: boolean;
 
   setFilter: (filter: EntryFilter) => void;
   setPage: (page: number) => void;
@@ -29,6 +30,9 @@ interface EntryStore {
   deleteEntry: (id: string) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
   classifyEntry: (id: string) => Promise<void>;
+  setSortMode: (on: boolean) => void;
+  moveEntry: (entryId: string, direction: 'up' | 'down') => Promise<void>;
+  saveSortOrders: (category: string) => Promise<void>;
   softDelete: (id: string) => Promise<void>;
   restoreEntry: (id: string) => Promise<void>;
   fetchTrash: () => Promise<void>;
@@ -49,6 +53,7 @@ export const useEntryStore = create<EntryStore>()(
       page: 1,
       trashEntries: [],
       _hydrated: false,
+      sortMode: false,
 
       setFilter: (filter) => {
         set({ filter, page: 1 });
@@ -216,6 +221,36 @@ export const useEntryStore = create<EntryStore>()(
         } catch {
           toast.error('AI 분류에 실패했습니다. 수동으로 분류해주세요.');
         }
+      },
+
+      setSortMode: (on) => {
+        set({ sortMode: on });
+      },
+
+      moveEntry: async (entryId, direction) => {
+        const { entries, filter } = get();
+        const idx = entries.findIndex((e) => e.id === entryId);
+        if (idx === -1) return;
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= entries.length) return;
+
+        const newEntries = [...entries];
+        [newEntries[idx], newEntries[swapIdx]] = [newEntries[swapIdx], newEntries[idx]];
+        set({ entries: newEntries });
+
+        if (filter.category) {
+          await get().saveSortOrders(filter.category);
+        }
+      },
+
+      saveSortOrders: async (category) => {
+        const { entries } = get();
+        const orders = entries.map((e, i) => ({ entry_id: e.id, sort_order: i }));
+        await fetch('/api/sort-orders', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, orders }),
+        }).catch(() => {/* non-blocking */});
       },
 
       softDelete: async (id) => {

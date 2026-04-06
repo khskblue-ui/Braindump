@@ -26,6 +26,7 @@ export interface Entry {
   priority: EntryPriority | null;
   is_completed: boolean;
   is_pinned: boolean;
+  sort_order: number | null;
   reminders: ReminderOption[];
   input_type: EntryInputType;
   ai_metadata: Record<string, unknown>;
@@ -53,6 +54,12 @@ export interface UpdateEntryInput {
   is_pinned?: boolean;
   deleted_at?: string | null;
   reminders?: ReminderOption[];
+}
+
+export interface CategorySortOrder {
+  entry_id: string;
+  category: string;
+  sort_order: number;
 }
 
 export interface ClassifyResult {

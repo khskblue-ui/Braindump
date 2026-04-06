@@ -80,11 +80,11 @@ async function classifySingleEntry(
       contentType as 'image/jpeg' | 'image/png' | 'image/webp',
       rawText || undefined
     );
-  } else if (rawText) {
-    if (rawText.length > MAX_TEXT_LENGTH) return null;
-    result = await classifyText(rawText);
   } else {
-    return null;
+    const textToClassify = [rawText, (entry.extracted_text as string) || ''].filter(Boolean).join('\n\n');
+    if (!textToClassify) return null;
+    if (textToClassify.length > MAX_TEXT_LENGTH) return null;
+    result = await classifyText(textToClassify);
   }
 
   const topic =
@@ -134,6 +134,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '항목을 찾을 수 없습니다.' }, { status: 404 });
   }
 
+  // Fetch user's recent correction patterns (last 20)
+  const { data: patterns } = await supabase
+    .from('user_classify_patterns')
+    .select('original_categories,corrected_categories,original_tags,corrected_tags,keyword_context')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  const userPatterns = patterns?.length ? patterns.map((p: {
+    original_categories: string[] | null;
+    corrected_categories: string[] | null;
+    original_tags: string[] | null;
+    corrected_tags: string[] | null;
+    keyword_context: string | null;
+  }) => {
+    const parts: string[] = [];
+    if (p.original_categories && p.corrected_categories) {
+      parts.push(`"${p.keyword_context?.slice(0, 50) || '...'}" → 카테고리: ${p.original_categories.join(',')} → ${p.corrected_categories.join(',')}`);
+    }
+    if (p.original_tags && p.corrected_tags) {
+      parts.push(`태그: [${p.original_tags.join(',')}] → [${p.corrected_tags.join(',')}]`);
+    }
+    return parts.join('; ');
+  }).filter(Boolean).join('\n') : undefined;
+
   try {
     let result;
 
@@ -154,14 +179,17 @@ export async function POST(request: NextRequest) {
       if (rawText.length > MAX_TEXT_LENGTH) {
         return NextResponse.json({ error: '텍스트가 너무 깁니다.' }, { status: 400 });
       }
-      result = await classifyImage(base64, mediaType, rawText || undefined);
-    } else if (entry.raw_text) {
-      if (entry.raw_text.length > MAX_TEXT_LENGTH) {
+      result = await classifyImage(base64, mediaType, rawText || undefined, { userPatterns });
+    } else {
+      // Combine raw_text + extracted_text (from on-device OCR) for text classification
+      const textToClassify = [entry.raw_text, entry.extracted_text].filter(Boolean).join('\n\n');
+      if (!textToClassify) {
+        return NextResponse.json({ error: '분류할 내용이 없습니다.' }, { status: 400 });
+      }
+      if (textToClassify.length > MAX_TEXT_LENGTH) {
         return NextResponse.json({ error: '텍스트가 너무 깁니다.' }, { status: 400 });
       }
-      result = await classifyText(entry.raw_text);
-    } else {
-      return NextResponse.json({ error: '분류할 내용이 없습니다.' }, { status: 400 });
+      result = await classifyText(textToClassify, { userPatterns });
     }
 
     const topic =

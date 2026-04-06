@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (tag) {
-    dbQuery = dbQuery.contains('tags', [tag]);
+    dbQuery = dbQuery.or(`tags::text.ilike.%${tag}%`);
   }
 
   if (query) {
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('user_id', user.id)
       .is('deleted_at', null)
-      .or(`raw_text.ilike.%${q}%,summary.ilike.%${q}%,extracted_text.ilike.%${q}%`)
+      .or(`raw_text.ilike.%${q}%,summary.ilike.%${q}%,extracted_text.ilike.%${q}%,topic.ilike.%${q}%`)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit);
 
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('user_id', user.id)
       .is('deleted_at', null)
-      .contains('tags', [tagQuery])
+      .or(`tags::text.ilike.%${tagQuery}%`)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit);
 
@@ -122,13 +122,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '검색에 실패했습니다.' }, { status: 500 });
     }
 
-    // Merge and deduplicate by id, sort by created_at desc
+    // Merge and deduplicate by id, apply unified sort
     const merged = new Map<string, typeof textResult.data[0]>();
     for (const e of [...(textResult.data || []), ...(tagResult.data || [])]) {
       if (!merged.has(e.id)) merged.set(e.id, e);
     }
-    const allEntries = [...merged.values()]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Fetch category sort orders if a specific category is active
+    let catSortMap = new Map<string, number>();
+    if (category && category !== 'all') {
+      const { data: sortOrderData } = await supabase
+        .from('entry_sort_orders')
+        .select('entry_id, sort_order')
+        .eq('user_id', user.id)
+        .eq('category', category);
+      if (sortOrderData && sortOrderData.length > 0) {
+        catSortMap = new Map(sortOrderData.map((r) => [r.entry_id, r.sort_order]));
+      }
+    }
+
+    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    const allEntries = [...merged.values()].sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+      if (catSortMap.size > 0) {
+        const aOrder = catSortMap.get(a.id);
+        const bOrder = catSortMap.get(b.id);
+        if (aOrder != null && bOrder != null) return aOrder - bOrder;
+        if (aOrder != null) return -1;
+        if (bOrder != null) return 1;
+      }
+      const pa = a.priority ? (priorityOrder[a.priority] ?? 3) : 3;
+      const pb = b.priority ? (priorityOrder[b.priority] ?? 3) : 3;
+      if (pa !== pb) return pa - pb;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
     // hasMore: true only if either sub-query returned a full page (limit+1 rows from inclusive range)
     const textFull = (textResult.data?.length ?? 0) > limit;
@@ -151,12 +178,36 @@ export async function GET(request: NextRequest) {
 
   let sortedEntries = entries ?? [];
 
-  // Pinned entries always appear first
+  // Fetch category sort orders if a specific category is active
+  let catSortMap = new Map<string, number>();
+  if (category && category !== 'all' && sortedEntries.length > 0) {
+    const { data: sortOrderData } = await supabase
+      .from('entry_sort_orders')
+      .select('entry_id, sort_order')
+      .eq('user_id', user.id)
+      .eq('category', category);
+    if (sortOrderData && sortOrderData.length > 0) {
+      catSortMap = new Map(sortOrderData.map((r) => [r.entry_id, r.sort_order]));
+    }
+  }
+
+  // Unified sort: pinned → category sort_order (if available) → priority → created_at
   if (sortedEntries.length > 0) {
-    sortedEntries = [
-      ...sortedEntries.filter((e) => e.is_pinned),
-      ...sortedEntries.filter((e) => !e.is_pinned),
-    ];
+    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    sortedEntries = [...sortedEntries].sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+      if (catSortMap.size > 0) {
+        const aOrder = catSortMap.get(a.id);
+        const bOrder = catSortMap.get(b.id);
+        if (aOrder != null && bOrder != null) return aOrder - bOrder;
+        if (aOrder != null) return -1;
+        if (bOrder != null) return 1;
+      }
+      const pa = a.priority ? (priorityOrder[a.priority] ?? 3) : 3;
+      const pb = b.priority ? (priorityOrder[b.priority] ?? 3) : 3;
+      if (pa !== pb) return pa - pb;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
   }
 
   // Schedule: upcoming (due_date ASC) first, no due_date in middle, past (due_date DESC) at end

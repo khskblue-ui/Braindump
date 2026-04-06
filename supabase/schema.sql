@@ -24,6 +24,8 @@ CREATE TABLE entries (
   reminders           TEXT[] DEFAULT '{}',
   input_type          entry_input_type NOT NULL DEFAULT 'text',
   ai_metadata         JSONB DEFAULT '{}',
+  is_pinned           BOOLEAN DEFAULT FALSE,
+  sort_order          INTEGER,
   created_at          TIMESTAMPTZ DEFAULT now(),
   updated_at          TIMESTAMPTZ DEFAULT now()
 );

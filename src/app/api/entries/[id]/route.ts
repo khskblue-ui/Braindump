@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { attachSignedUrls } from '@/lib/signed-url';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+async function recordClassifyPattern(
+  supabase: SupabaseClient,
+  userId: string,
+  entryId: string,
+  original: { categories?: string[]; tags?: string[]; priority?: string },
+  updated: { categories?: string[]; tags?: string[]; priority?: string },
+  rawText?: string
+) {
+  const categoriesChanged = JSON.stringify(original.categories) !== JSON.stringify(updated.categories);
+  const tagsChanged = JSON.stringify(original.tags?.sort()) !== JSON.stringify(updated.tags?.sort());
+  const priorityChanged = original.priority !== updated.priority;
+
+  if (!categoriesChanged && !tagsChanged && !priorityChanged) return;
+
+  await supabase.from('user_classify_patterns').insert({
+    user_id: userId,
+    entry_id: entryId,
+    original_categories: categoriesChanged ? original.categories : null,
+    corrected_categories: categoriesChanged ? updated.categories : null,
+    original_tags: tagsChanged ? original.tags : null,
+    corrected_tags: tagsChanged ? updated.tags : null,
+    original_priority: priorityChanged ? original.priority : null,
+    corrected_priority: priorityChanged ? updated.priority : null,
+    keyword_context: rawText?.slice(0, 200) || null,
+  });
+}
 
 export async function GET(
   _request: NextRequest,
@@ -50,6 +78,14 @@ export async function PATCH(
     return NextResponse.json({ error: '수정할 필드가 없습니다.' }, { status: 400 });
   }
 
+  // Fetch original entry to detect AI classification corrections
+  const { data: originalEntry } = await supabase
+    .from('entries')
+    .select('categories, tags, priority, raw_text')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
   const { data: entry, error } = await supabase
     .from('entries')
     .update(allowed)
@@ -63,6 +99,26 @@ export async function PATCH(
     return NextResponse.json({ error: '항목 수정에 실패했습니다.' }, { status: 500 });
   }
   if (!entry) return NextResponse.json({ error: '항목을 찾을 수 없습니다.' }, { status: 404 });
+
+  // Record pattern if AI-classified fields were corrected
+  if (originalEntry && (allowed.categories !== undefined || allowed.tags !== undefined || allowed.priority !== undefined)) {
+    await recordClassifyPattern(
+      supabase,
+      user.id,
+      id,
+      {
+        categories: originalEntry.categories,
+        tags: originalEntry.tags,
+        priority: originalEntry.priority,
+      },
+      {
+        categories: allowed.categories as string[] | undefined,
+        tags: allowed.tags as string[] | undefined,
+        priority: allowed.priority as string | undefined,
+      },
+      originalEntry.raw_text
+    ).catch((err) => console.error('Pattern recording error:', err));
+  }
 
   return NextResponse.json({ entry });
 }
