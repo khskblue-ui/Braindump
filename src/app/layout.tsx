@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   description: "머릿속 생각을 빠르게 기록하면, AI가 자동으로 분류하고 체계화합니다.",
   manifest: "/manifest.json",
   icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };
