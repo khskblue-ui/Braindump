@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { HeroDemo } from '@/components/landing/HeroDemo';
 import { FeatureHighlight } from '@/components/landing/FeatureHighlight';
-import { InstallButton } from '@/components/landing/InstallButton';
+import { PlatformCTA, PlatformCards } from '@/components/landing/PlatformCTA';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
+import { AppPreview } from '@/components/landing/AppPreview';
+import { FAQ } from '@/components/landing/FAQ';
 
 export default function LandingPage() {
   return (
@@ -20,7 +22,7 @@ export default function LandingPage() {
           텍스트, 음성, 사진, PDF — 뭐든 던지세요.
         </p>
         <div className="mt-8 animate-fade-in-up-delay-2">
-          <InstallButton />
+          <PlatformCTA />
         </div>
 
         <div className="mt-16 animate-fade-in-up-delay-3">
@@ -129,14 +131,15 @@ export default function LandingPage() {
             <ScrollReveal delay={200}>
               <div className="py-8">
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <h3 className="text-lg sm:text-xl font-bold">AI 멀티 분류</h3>
+                  <h3 className="text-lg sm:text-xl font-bold">AI가 알아서 분류</h3>
                   <span className="text-sm text-gray-300 font-medium tracking-wider">
                     STEP 2
                   </span>
                 </div>
                 <p className="text-gray-500 leading-relaxed">
-                  하나의 기록이 할 일이면서 일정일 수 있습니다. AI가 문맥을
-                  파악하여 복수 카테고리, 우선순위, 태그를 자동으로 붙여줍니다.
+                  폴더를 고민할 필요 없습니다. AI가 문맥을 읽고 할 일, 일정, 메모,
+                  아이디어, 지식으로 자동 분류합니다. 하나의 기록이 여러 카테고리에
+                  동시에 속할 수도 있습니다. 당신은 그냥 쏟아내기만 하세요.
                 </p>
               </div>
               <hr className="border-gray-200" />
@@ -166,8 +169,14 @@ export default function LandingPage() {
         <FeatureHighlight />
       </section>
 
+      {/* App Preview Section */}
+      <AppPreview />
+
+      {/* FAQ Section */}
+      <FAQ />
+
       {/* CTA Section */}
-      <section className="px-6 py-24 sm:py-32 text-center">
+      <section className="bg-gray-50 px-6 py-24 sm:py-32 text-center">
         <ScrollReveal>
           <div className="max-w-3xl mx-auto">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight">
@@ -175,37 +184,28 @@ export default function LandingPage() {
               <br />
               생각이 정리됩니다.
             </h2>
-            <div className="mt-10">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 bg-black text-white px-10 py-4 rounded-full text-base font-medium hover:bg-gray-800 transition-colors"
-              >
-                Google로 3초 만에 시작하기
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-            <p className="mt-6 text-sm text-gray-400">
-              무료 · 가입 즉시 사용 · 앱 설치 없이 브라우저에서
+            <p className="mt-6 text-gray-500 max-w-md mx-auto">
+              지금 바로 시작하세요. iOS 앱 또는 데스크탑 웹에서.
             </p>
+            <div className="mt-10">
+              <PlatformCards />
+            </div>
           </div>
         </ScrollReveal>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-gray-100 px-6 py-8">
-        <div className="max-w-3xl mx-auto text-center text-xs text-gray-400">
-          &copy; 2025 BrainDump. All rights reserved.
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400">
+          <p>&copy; 2026 BrainDump. All rights reserved.</p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+              개인정보 처리방침
+            </Link>
+            <a href="mailto:lifescienkhs@naver.com" className="hover:text-gray-600 transition-colors">
+              문의
+            </a>
+          </div>
         </div>
       </footer>
     </>

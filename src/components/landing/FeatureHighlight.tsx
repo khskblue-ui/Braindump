@@ -7,25 +7,25 @@ const FEATURES = [
   {
     id: 'voice',
     title: '음성 입력',
-    desc: '말하면 기록됩니다',
+    desc: '말하면 텍스트로 변환되어 바로 기록됩니다',
     icon: 'mic',
+  },
+  {
+    id: 'ai-classify',
+    title: 'AI 자동 분류',
+    desc: '입력하는 순간, AI가 알아서 정리합니다',
+    icon: 'ai',
   },
   {
     id: 'dashboard',
     title: '대시보드',
-    desc: '할 일과 일정을 한눈에',
+    desc: '할 일과 일정을 한눈에 파악하세요',
     icon: 'dashboard',
   },
   {
-    id: 'pin',
-    title: '핀 고정',
-    desc: '중요한 건 항상 위에',
-    icon: 'pin',
-  },
-  {
     id: 'share',
-    title: '공유 타겟',
-    desc: '다른 앱에서 바로 저장',
+    title: '공유 저장',
+    desc: '다른 앱에서 공유 한 번이면 바로 저장',
     icon: 'share',
   },
 ] as const;
@@ -33,7 +33,6 @@ const FEATURES = [
 function MicAnimation() {
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Mic icon with pulse ring */}
       <div className="relative">
         <div className="absolute inset-0 rounded-full bg-red-400/20 animate-ping-slow" />
         <div className="relative w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
@@ -44,7 +43,6 @@ function MicAnimation() {
           </svg>
         </div>
       </div>
-      {/* Voice bars */}
       <div className="flex items-end gap-0.5 h-5">
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
           <div
@@ -54,10 +52,51 @@ function MicAnimation() {
           />
         ))}
       </div>
-      {/* Transcribed text fade-in */}
       <p className="text-xs text-gray-500 animate-text-appear">
-        &ldquo;내일 회의 자료 준비&rdquo;
+        &ldquo;금요일까지 보고서 제출&rdquo;
       </p>
+    </div>
+  );
+}
+
+/* AI Classification Animation — emphasizes automatic, effortless sorting */
+function AIClassifyAnimation() {
+  return (
+    <div className="w-full max-w-[280px] mx-auto">
+      {/* Input text appears */}
+      <div className="bg-white border border-gray-200 rounded-xl p-3 mb-3 animate-fade-in-fast">
+        <p className="text-xs text-gray-700">&ldquo;다음주 수요일 치과 예약, 그리고 프레젠테이션 자료 준비할 것&rdquo;</p>
+      </div>
+
+      {/* AI processing indicator */}
+      <div className="flex items-center justify-center gap-2 mb-3 animate-ai-process">
+        <div className="flex gap-0.5">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="w-1 h-1 rounded-full bg-blue-400 animate-ai-dot"
+              style={{ animationDelay: `${i * 0.2}s` }}
+            />
+          ))}
+        </div>
+        <span className="text-[10px] text-blue-400 font-medium">AI 분류 중</span>
+      </div>
+
+      {/* Results pop in as separate cards */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 animate-classify-result-1">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: '#F9731615', color: '#F97316' }}>
+            일정
+          </span>
+          <span className="text-[10px] text-gray-600">다음주 수요일 치과 예약</span>
+        </div>
+        <div className="flex items-center gap-2 animate-classify-result-2">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: '#3B82F615', color: '#3B82F6' }}>
+            할 일
+          </span>
+          <span className="text-[10px] text-gray-600">프레젠테이션 자료 준비</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -93,30 +132,6 @@ function DashboardAnimation() {
   );
 }
 
-function PinAnimation() {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      {/* Card stack with pin dropping */}
-      <div className="relative w-full max-w-[140px]">
-        {/* Background card */}
-        <div className="h-10 rounded-lg bg-gray-100 border border-gray-200" />
-        {/* Foreground pinned card */}
-        <div className="h-10 rounded-lg bg-white border border-blue-200 shadow-sm -mt-6 relative animate-card-lift">
-          <div className="absolute -top-2 right-2 animate-pin-drop">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#3B82F6" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
-            </svg>
-          </div>
-          <div className="px-3 py-2">
-            <div className="h-1.5 w-16 bg-blue-100 rounded-full" />
-          </div>
-        </div>
-      </div>
-      <p className="text-[10px] text-gray-400">고정됨</p>
-    </div>
-  );
-}
-
 function ShareAnimation() {
   return (
     <div className="flex items-center gap-3 justify-center">
@@ -133,9 +148,16 @@ function ShareAnimation() {
           <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
       </div>
-      {/* BrainDump icon */}
-      <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center animate-share-receive">
-        <span className="text-white text-xs font-bold">B</span>
+      {/* BrainDump icon — matches actual app logo */}
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center animate-share-receive">
+        <svg viewBox="0 0 32 32" className="w-6 h-6">
+          <path
+            d="M10 8h6c2.2 0 4 1.8 4 4 0 1.5-.8 2.7-2 3.4 1.6.6 2.8 2.2 2.8 4.1 0 2.5-2 4.5-4.5 4.5H10V8z
+            M13 11v3.5h2.5c1 0 1.7-.8 1.7-1.75S16.5 11 15.5 11H13z
+            M13 17.5V21h3c1.1 0 2-.9 2-1.75s-.9-1.75-2-1.75H13z"
+            fill="white"
+          />
+        </svg>
       </div>
     </div>
   );
@@ -146,8 +168,8 @@ export function FeatureHighlight() {
 
   const animations = [
     <MicAnimation key="mic" />,
+    <AIClassifyAnimation key="ai" />,
     <DashboardAnimation key="dashboard" />,
-    <PinAnimation key="pin" />,
     <ShareAnimation key="share" />,
   ];
 
@@ -193,14 +215,12 @@ export function FeatureHighlight() {
       {/* Animation viewport */}
       <ScrollReveal delay={200}>
         <div className="bg-gray-50 rounded-2xl p-8 min-h-[180px] flex flex-col items-center justify-center relative overflow-hidden">
-          {/* Animation */}
           <div
             key={activeIndex}
             className="animate-feature-switch w-full flex justify-center"
           >
             {animations[activeIndex]}
           </div>
-          {/* Description */}
           <p
             key={`desc-${activeIndex}`}
             className="text-sm text-gray-500 mt-6 animate-fade-in-fast"

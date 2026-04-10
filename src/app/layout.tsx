@@ -17,8 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BrainDump",
-  description: "머릿속 생각을 빠르게 기록하면, AI가 자동으로 분류하고 체계화합니다.",
+  title: "BrainDump — 쏟아내면, AI가 정리합니다",
+  description:
+    "텍스트, 음성, 사진, PDF — 뭐든 던지세요. AI가 할 일, 일정, 메모, 아이디어로 자동 분류합니다. iOS 앱 & 데스크탑 웹.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -26,6 +27,21 @@ export const metadata: Metadata = {
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
     ],
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "BrainDump — 쏟아내면, AI가 정리합니다",
+    description:
+      "텍스트, 음성, 사진, PDF — 뭐든 던지세요. AI가 할 일, 일정, 메모, 아이디어로 자동 분류합니다.",
+    url: "https://braindump-jet.vercel.app",
+    siteName: "BrainDump",
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BrainDump — 쏟아내면, AI가 정리합니다",
+    description:
+      "텍스트, 음성, 사진, PDF — 뭐든 던지세요. AI가 자동 분류합니다.",
   },
 };
 

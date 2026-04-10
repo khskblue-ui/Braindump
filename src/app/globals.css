@@ -304,3 +304,37 @@ input, textarea, [contenteditable="true"] {
 .animate-slide-up {
   animation: slide-up 0.4s ease-out both;
 }
+
+/* ---- Landing: AI Classification animations ---- */
+
+/* AI processing dots */
+@keyframes ai-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+.animate-ai-dot {
+  animation: ai-dot 0.8s ease-in-out infinite;
+}
+
+/* AI process indicator */
+@keyframes ai-process {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-ai-process {
+  animation: ai-process 2s ease-in-out both;
+}
+
+/* Classification result items staggered */
+@keyframes classify-result {
+  0% { opacity: 0; transform: translateX(-12px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.animate-classify-result-1 {
+  animation: classify-result 0.4s ease-out 1.2s both;
+}
+.animate-classify-result-2 {
+  animation: classify-result 0.4s ease-out 1.6s both;
+}

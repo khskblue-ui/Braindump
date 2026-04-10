@@ -18,7 +18,7 @@ export default function LandingLayout({
             href="/login"
             className="flex items-center gap-2 text-sm font-medium"
           >
-            Log in
+            시작하기
             <span className="flex items-center justify-center w-7 h-7 rounded-full bg-black text-white">
               <svg
                 width="14"
