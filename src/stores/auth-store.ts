@@ -12,6 +12,7 @@ interface AuthStore {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -52,6 +53,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) throw error;
+  },
+
+  signInWithApple: async () => {
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (error) throw error;
