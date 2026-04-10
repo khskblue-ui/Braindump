@@ -23,6 +23,10 @@ export function LoginForm() {
 
   useEffect(() => {
     setBrowserCtx(detectBrowserContext());
+    // Read error from URL query param (set by auth callback)
+    const params = new URLSearchParams(window.location.search);
+    const urlError = params.get('error');
+    if (urlError) setError(decodeURIComponent(urlError));
   }, []);
 
   const isInApp = browserCtx?.type === 'inapp' || browserCtx?.type === 'ios-non-safari';
