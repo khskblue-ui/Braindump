@@ -3,12 +3,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
-import type { Entry, EntryCategory, CreateEntryInput, UpdateEntryInput } from '@/types';
+import type { Entry, EntryCategory, EntryContext, CreateEntryInput, UpdateEntryInput } from '@/types';
 
 interface EntryFilter {
   category?: EntryCategory;
   tag?: string;
   query?: string;
+  context?: EntryContext;
+}
+
+interface NewCardState {
+  timerExpired: boolean;
+  classifyDone: boolean;
 }
 
 interface EntryStore {
@@ -20,6 +26,7 @@ interface EntryStore {
   trashEntries: Entry[];
   _hydrated: boolean;
   sortMode: boolean;
+  newCardStates: Map<string, NewCardState>;
 
   setFilter: (filter: EntryFilter) => void;
   setPage: (page: number) => void;
@@ -43,6 +50,33 @@ interface EntryStore {
 // AbortController for cancelling stale fetch requests (M1)
 let fetchController: AbortController | null = null;
 
+// Timer handles for new card 5-second pinning — prevents leaks on delete/unmount
+const newCardTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// Helper: sort entries with new cards pinned at top
+function sortWithNewCards(entries: Entry[], newCardStates: Map<string, NewCardState>): Entry[] {
+  if (newCardStates.size === 0) return entries;
+  const newCards = entries.filter((e) => newCardStates.has(e.id));
+  const rest = entries.filter((e) => !newCardStates.has(e.id));
+  return [...newCards, ...rest];
+}
+
+// Helper: check and release a new card if both conditions met
+function tryReleaseNewCard(id: string, get: () => EntryStore) {
+  const state = get().newCardStates.get(id);
+  if (state && state.timerExpired && state.classifyDone) {
+    const newMap = new Map(get().newCardStates);
+    newMap.delete(id);
+    // Clear the timer handle if still pending
+    clearTimeout(newCardTimers.get(id));
+    newCardTimers.delete(id);
+    // Re-fetch to get proper server sort order
+    const store = get();
+    store.newCardStates = newMap;
+    store.fetchEntries();
+  }
+}
+
 export const useEntryStore = create<EntryStore>()(
   persist(
     (set, get) => ({
@@ -54,6 +88,7 @@ export const useEntryStore = create<EntryStore>()(
       trashEntries: [],
       _hydrated: false,
       sortMode: false,
+      newCardStates: new Map<string, NewCardState>(),
 
       setFilter: (filter) => {
         set({ filter, page: 1 });
@@ -78,6 +113,7 @@ export const useEntryStore = create<EntryStore>()(
           if (filter.category) params.set('category', filter.category);
           if (filter.tag) params.set('tag', filter.tag);
           if (filter.query) params.set('q', filter.query);
+          if (filter.context) params.set('context', filter.context);
           params.set('page', String(page));
           params.set('limit', '20');
 
@@ -85,10 +121,10 @@ export const useEntryStore = create<EntryStore>()(
           if (!res.ok) throw new Error('Failed to fetch entries');
           const data = await res.json();
           if (page === 1) {
-            set({ entries: data.entries, hasMore: data.hasMore });
+            set({ entries: sortWithNewCards(data.entries, get().newCardStates), hasMore: data.hasMore });
           } else {
             set((state) => ({
-              entries: [...state.entries, ...data.entries],
+              entries: sortWithNewCards([...state.entries, ...data.entries], state.newCardStates),
               hasMore: data.hasMore,
             }));
           }
@@ -120,9 +156,27 @@ export const useEntryStore = create<EntryStore>()(
         }
         const { entry } = await res.json();
 
+        // Register new card pinning state
+        const newMap = new Map(get().newCardStates);
+        newMap.set(entry.id, { timerExpired: false, classifyDone: false });
+
         set((state) => ({
           entries: [entry, ...state.entries],
+          newCardStates: newMap,
         }));
+
+        // Start 5-second timer — handle stored so it can be cancelled on early delete
+        const timer = setTimeout(() => {
+          newCardTimers.delete(entry.id);
+          const currentMap = new Map(get().newCardStates);
+          const state = currentMap.get(entry.id);
+          if (state) {
+            currentMap.set(entry.id, { ...state, timerExpired: true });
+            set({ newCardStates: currentMap });
+            tryReleaseNewCard(entry.id, get);
+          }
+        }, 5000);
+        newCardTimers.set(entry.id, timer);
 
         return entry;
       },
@@ -139,15 +193,32 @@ export const useEntryStore = create<EntryStore>()(
         set((state) => ({
           entries: state.entries.map((e) => (e.id === id ? entry : e)),
         }));
+
+        // Auto-classify context when category changed to task/schedule and context is null
+        if (data.categories && !entry.context) {
+          const hasTaskOrSchedule = data.categories.some((c: string) => c === 'task' || c === 'schedule');
+          if (hasTaskOrSchedule) {
+            get().classifyEntry(id);
+          }
+        }
       },
 
       deleteEntry: async (id) => {
         const res = await fetch(`/api/entries/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Failed to delete entry');
 
-        set((state) => ({
-          entries: state.entries.filter((e) => e.id !== id),
-        }));
+        // Cancel pending new-card timer if the card is deleted before release
+        clearTimeout(newCardTimers.get(id));
+        newCardTimers.delete(id);
+
+        set((state) => {
+          const newCardStates = new Map(state.newCardStates);
+          newCardStates.delete(id);
+          return {
+            entries: state.entries.filter((e) => e.id !== id),
+            newCardStates,
+          };
+        });
       },
 
       toggleComplete: async (id) => {
@@ -213,13 +284,30 @@ export const useEntryStore = create<EntryStore>()(
                     summary: result.summary ?? e.summary,
                     extracted_text: result.extracted_text ?? e.extracted_text,
                     due_date: result.due_date ?? e.due_date,
-                    priority: result.priority ?? e.priority,
+                    context: result.context ?? e.context,
                   }
                 : e
             ),
           }));
+
+          // Mark classification done for new card pinning
+          const currentMap = new Map(get().newCardStates);
+          const cardState = currentMap.get(id);
+          if (cardState) {
+            currentMap.set(id, { ...cardState, classifyDone: true });
+            set({ newCardStates: currentMap });
+            tryReleaseNewCard(id, get);
+          }
         } catch {
           toast.error('AI 분류에 실패했습니다. 수동으로 분류해주세요.');
+          // On error, also release card so it doesn't stay pinned forever
+          const currentMap = new Map(get().newCardStates);
+          const cardState = currentMap.get(id);
+          if (cardState) {
+            currentMap.set(id, { ...cardState, classifyDone: true });
+            set({ newCardStates: currentMap });
+            tryReleaseNewCard(id, get);
+          }
         }
       },
 
@@ -258,10 +346,19 @@ export const useEntryStore = create<EntryStore>()(
           toast.error('오프라인 상태에서는 삭제할 수 없습니다.');
           return;
         }
+        // Cancel pending new-card timer if the card is soft-deleted before release
+        clearTimeout(newCardTimers.get(id));
+        newCardTimers.delete(id);
+
         await get().updateEntry(id, { deleted_at: new Date().toISOString() });
-        set((state) => ({
-          entries: state.entries.filter((e) => e.id !== id),
-        }));
+        set((state) => {
+          const newCardStates = new Map(state.newCardStates);
+          newCardStates.delete(id);
+          return {
+            entries: state.entries.filter((e) => e.id !== id),
+            newCardStates,
+          };
+        });
       },
 
       restoreEntry: async (id) => {
@@ -300,7 +397,7 @@ export const useEntryStore = create<EntryStore>()(
     {
       name: 'braindump-entries',
       partialize: (state) => ({
-        entries: state.entries.slice(0, 50).map(e => ({
+        entries: state.entries.slice(0, 20).map(e => ({
           ...e,
           // Strip all signed URLs (they expire) - not just token= ones (L1)
           image_url: e.image_url && (e.image_url.includes('token=') || e.image_url.includes('Expires=')) ? null : e.image_url,

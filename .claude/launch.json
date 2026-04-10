@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "braindump-dev",
+      "runtimeExecutable": "/opt/homebrew/opt/node@24/bin/node",
+      "runtimeArgs": ["/Users/khs/Desktop/braindump/node_modules/next/dist/bin/next", "dev", "--port", "3333"],
+      "port": 3333
+    }
+  ]
+}

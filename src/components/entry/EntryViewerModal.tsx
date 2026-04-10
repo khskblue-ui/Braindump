@@ -25,7 +25,7 @@ interface EntryViewerModalProps {
 }
 
 export function EntryViewerModal({ entry, open, onClose, onEdit }: EntryViewerModalProps) {
-  const { deleteEntry } = useEntryStore();
+  const deleteEntry = useEntryStore((s) => s.deleteEntry);
   const [reclassifying, setReclassifying] = useState(false);
   const [copied, setCopied] = useState(false);
 

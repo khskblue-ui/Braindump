@@ -197,6 +197,15 @@ export function LoginForm() {
           {isSignUp ? '로그인' : '회원가입'}
         </button>
       </p>
+      {/* Privacy */}
+      <a
+        href="/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block text-center text-xs text-muted-foreground hover:underline underline-offset-4"
+      >
+        개인정보 처리방침
+      </a>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 export type EntryCategory = 'task' | 'idea' | 'memo' | 'knowledge' | 'schedule' | 'inbox';
 export type EntryInputType = 'text' | 'image' | 'mixed' | 'pdf';
 export type EntryPriority = 'high' | 'medium' | 'low';
+export type EntryContext = 'personal' | 'work';
 export type ReminderOption = '1week' | '2days' | '1day' | '1hour' | '10min';
 
 export const REMINDER_OPTIONS: { value: ReminderOption; label: string; ms: number }[] = [
@@ -29,6 +30,7 @@ export interface Entry {
   sort_order: number | null;
   reminders: ReminderOption[];
   input_type: EntryInputType;
+  context: EntryContext | null;
   ai_metadata: Record<string, unknown>;
   deleted_at: string | null;
   created_at: string;
@@ -52,6 +54,7 @@ export interface UpdateEntryInput {
   priority?: EntryPriority | null;
   is_completed?: boolean;
   is_pinned?: boolean;
+  context?: EntryContext | null;
   deleted_at?: string | null;
   reminders?: ReminderOption[];
 }
@@ -69,7 +72,7 @@ export interface ClassifyResult {
   extracted_text?: string;
   summary?: string;
   due_date?: string;
-  priority?: EntryPriority;
+  context?: EntryContext;
   related_topics?: string[];
 }
 

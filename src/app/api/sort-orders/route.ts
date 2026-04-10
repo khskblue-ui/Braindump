@@ -43,7 +43,21 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'category와 orders가 필요합니다.' }, { status: 400 });
   }
 
-  const upsertData = orders.map(({ entry_id, sort_order }) => ({
+  // Validate entry ownership: only allow sort orders for user's own entries
+  const entryIds = orders.map((o: { entry_id: string }) => o.entry_id);
+  const { data: ownedEntries } = await supabase
+    .from('entries')
+    .select('id')
+    .eq('user_id', user.id)
+    .in('id', entryIds);
+  const ownedIds = new Set(ownedEntries?.map((e: { id: string }) => e.id));
+  const validOrders = orders.filter((o: { entry_id: string }) => ownedIds.has(o.entry_id));
+
+  if (validOrders.length === 0) {
+    return NextResponse.json({ error: '유효한 항목이 없습니다.' }, { status: 400 });
+  }
+
+  const upsertData = validOrders.map(({ entry_id, sort_order }: { entry_id: string; sort_order: number }) => ({
     entry_id,
     user_id: user.id,
     category,

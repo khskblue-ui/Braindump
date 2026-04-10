@@ -28,6 +28,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isLanding = pathname === '/';
   const isAuthPage = pathname.startsWith('/login');
+  const isPublicPage = pathname.startsWith('/privacy');
   const isApiRoute = pathname.startsWith('/api');
 
   // API 라우트는 각 핸들러에서 requireAuth() → getUser()로 검증
@@ -50,6 +51,11 @@ export async function updateSession(request: NextRequest) {
 
   // 랜딩 페이지는 공개
   if (isLanding) {
+    return supabaseResponse;
+  }
+
+  // 공개 페이지는 인증 불필요
+  if (isPublicPage) {
     return supabaseResponse;
   }
 

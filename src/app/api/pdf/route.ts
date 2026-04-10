@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { classifyText } from '@/lib/classify';
+import { classifyText, smartTruncate } from '@/lib/classify';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import { join } from 'path';
 
@@ -100,10 +100,8 @@ export async function POST(request: NextRequest) {
 
     pdfDoc.destroy();
 
-    // Truncate if too long
-    const textForAI = extractedText.length > MAX_TEXT_LENGTH
-      ? extractedText.slice(0, MAX_TEXT_LENGTH)
-      : extractedText;
+    // Truncate if too long (smart sampling: beginning + ending)
+    const textForAI = smartTruncate(extractedText, MAX_TEXT_LENGTH);
 
     // 2. Create entry immediately (as inbox, with extracted text)
     const { data: entry, error: insertError } = await supabase
@@ -121,15 +119,30 @@ export async function POST(request: NextRequest) {
     if (insertError || !entry) {
       console.error('PDF entry creation error:', insertError);
       return NextResponse.json(
-        { error: `항목 생성에 실패했습니다: ${insertError?.message || 'unknown'}`, code: insertError?.code, details: insertError?.details },
+        { error: '항목 생성에 실패했습니다.' },
         { status: 500 }
       );
     }
 
     // 3. AI classify + summarize (background-style but within same request)
+    // Fetch user's custom rules for priority injection
+    let userRules: string | undefined;
+    const { data: rules } = await supabase
+      .from('user_classify_rules')
+      .select('keyword, category, context')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (rules?.length) {
+      userRules = rules.map((r: { keyword: string; category: string; context: string | null }) => {
+        const ctx = r.context ? ` (${r.context === 'personal' ? '개인' : '회사'})` : '';
+        return `- "${r.keyword}" 키워드 → 반드시 ${r.category} 포함${ctx}`;
+      }).join('\n');
+    }
+
     try {
       // Use more tokens for long PDF content (detailed summary)
-      const result = await classifyText(textForAI, { maxTokens: 1500 });
+      const result = await classifyText(textForAI, { maxTokens: 1500, userRules, inputType: 'PDF', textLength: extractedText.length });
 
       // For PDF, ensure 'knowledge' is included
       let categories = result.categories;
@@ -147,10 +160,13 @@ export async function POST(request: NextRequest) {
         categories,
         tags: result.tags || [],
         summary: result.summary || null,
-        priority: result.priority || null,
         topic,
         ai_metadata: result,
       };
+      // Only set context for task/schedule entries
+      if (result.context && (categories.includes('task') || categories.includes('schedule'))) {
+        updateData.context = result.context;
+      }
 
       await supabase
         .from('entries')

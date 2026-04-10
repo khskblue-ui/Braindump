@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
 import { hasCategory, CATEGORY_MAP } from '@/types';
 import type { Entry } from '@/types';
@@ -39,58 +39,60 @@ export function TodayDashboard({ onEntryClick }: TodayDashboardProps) {
   const entries = useEntryStore((s) => s.entries);
   const [expanded, setExpanded] = useState(false);
 
-  const today = startOfDay(new Date());
+  const { overdue, todayItems, highPriority, totalCount } = useMemo(() => {
+    const today = startOfDay(new Date());
+    const overdue: Entry[] = [];
+    const todayItems: Entry[] = [];
+    const highPriority: Entry[] = [];
 
-  const overdue: Entry[] = [];
-  const todayItems: Entry[] = [];
-  const highPriority: Entry[] = [];
+    for (const entry of entries) {
+      // is_pinned check (future feature - field may not exist yet)
+      const isPinned = (entry as Entry & { is_pinned?: boolean }).is_pinned === true;
 
-  for (const entry of entries) {
-    // is_pinned check (future feature - field may not exist yet)
-    const isPinned = (entry as Entry & { is_pinned?: boolean }).is_pinned === true;
+      if (entry.due_date) {
+        const dueDate = new Date(entry.due_date);
+        const dueDateDay = startOfDay(dueDate);
 
-    if (entry.due_date) {
-      const dueDate = new Date(entry.due_date);
-      const dueDateDay = startOfDay(dueDate);
+        if (isToday(dueDate)) {
+          if (hasCategory(entry, 'schedule') || hasCategory(entry, 'task')) {
+            todayItems.push(entry);
+          }
+        } else if (isPast(dueDateDay) && !entry.is_completed && hasCategory(entry, 'task')) {
+          overdue.push(entry);
+        }
+      } else {
+        // No due_date: high priority task
+        if (
+          entry.priority === 'high' &&
+          hasCategory(entry, 'task') &&
+          !entry.is_completed
+        ) {
+          highPriority.push(entry);
+        }
+      }
 
-      if (isToday(dueDate)) {
-        if (hasCategory(entry, 'schedule') || hasCategory(entry, 'task')) {
+      // Pinned entries always appear (if not already added)
+      if (isPinned) {
+        const alreadyAdded =
+          overdue.includes(entry) ||
+          todayItems.includes(entry) ||
+          highPriority.includes(entry);
+        if (!alreadyAdded) {
           todayItems.push(entry);
         }
-      } else if (isPast(dueDateDay) && !entry.is_completed && hasCategory(entry, 'task')) {
-        overdue.push(entry);
-      }
-    } else {
-      // No due_date: high priority task
-      if (
-        entry.priority === 'high' &&
-        hasCategory(entry, 'task') &&
-        !entry.is_completed
-      ) {
-        highPriority.push(entry);
       }
     }
 
-    // Pinned entries always appear (if not already added)
-    if (isPinned) {
-      const alreadyAdded =
-        overdue.includes(entry) ||
-        todayItems.includes(entry) ||
-        highPriority.includes(entry);
-      if (!alreadyAdded) {
-        todayItems.push(entry);
-      }
-    }
-  }
+    // Sort today items by due_date time ascending
+    todayItems.sort((a, b) => {
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    });
 
-  // Sort today items by due_date time ascending
-  todayItems.sort((a, b) => {
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
-    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-  });
+    return { overdue, todayItems, highPriority, totalCount: overdue.length + todayItems.length + highPriority.length };
+  }, [entries]);
 
-  const totalCount = overdue.length + todayItems.length + highPriority.length;
   if (totalCount === 0) return null;
 
   const headerDate = format(new Date(), 'M월 d일 EEEE', { locale: ko });

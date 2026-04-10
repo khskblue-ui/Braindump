@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Trash2, Save } from 'lucide-react';
+import { Settings, LogOut, Trash2, Save, Brain, ChevronRight, BookOpen, History, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 const PURGE_OPTIONS = [
   { value: 7, label: '7일' },
@@ -79,6 +80,37 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
+            <Brain className="h-4 w-4" strokeWidth={1.5} /> AI 자동 분류
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <Link href="/settings/classify-guide" className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors">
+            <div className="flex items-center gap-2.5">
+              <BookOpen className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-sm">분류 기준 안내</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          </Link>
+          <Link href="/settings/classify-patterns" className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors">
+            <div className="flex items-center gap-2.5">
+              <History className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-sm">나의 교정 이력</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          </Link>
+          <Link href="/settings/classify-rules" className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors">
+            <div className="flex items-center gap-2.5">
+              <ListChecks className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-sm">나의 분류 규칙</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          </Link>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
             <Trash2 className="h-4 w-4" strokeWidth={1.5} /> 휴지통 설정
           </CardTitle>
         </CardHeader>
@@ -113,6 +145,26 @@ export default function SettingsPage() {
             <Save className="h-4 w-4" strokeWidth={1.5} />
             {saving ? '저장 중...' : '저장'}
           </Button>
+        </CardContent>
+      </Card>
+      {/* 계정 관리 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">계정 관리</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-sm">개인정보 처리방침</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          </a>
         </CardContent>
       </Card>
     </div>

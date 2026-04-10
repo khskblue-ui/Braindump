@@ -27,7 +27,8 @@ interface EntryEditModalProps {
 }
 
 export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
-  const { updateEntry, deleteEntry } = useEntryStore();
+  const updateEntry = useEntryStore((s) => s.updateEntry);
+  const deleteEntry = useEntryStore((s) => s.deleteEntry);
   const [rawText, setRawText] = useState(entry.raw_text || '');
   const [summary, setSummary] = useState(entry.summary || '');
   const [categories, setCategories] = useState<EntryCategory[]>(entry.categories);

@@ -36,7 +36,7 @@ function buildCalendarReference(): string {
     lines.join('\n');
 }
 
-function buildSystemPrompt(userPatterns?: string): string {
+function buildSystemPrompt(userPatterns?: string, userRules?: string): string {
   // Use Korean timezone (KST, UTC+9) for correct date/day-of-week
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -68,6 +68,19 @@ ${calendar}
 4단계 — 참고용 기록인가?
   사실/결과/상황 기록이면 → memo
   학습한 정보/개념 정리이면 → knowledge
+
+## 긴 문서/파일 분류 규칙
+- PDF, 긴 텍스트(1000자 이상)는 대부분 참고 자료입니다
+- 문서 전체의 주제와 목적을 파악하여 분류하세요
+- 학습/참고용 문서 → knowledge
+- 회의록, 기록물 → memo
+- 계약서, 일정표 등 기한 포함 → schedule + knowledge
+- 긴 문서를 inbox로 분류하지 마세요. knowledge 또는 memo 중 하나는 반드시 포함하세요
+
+## URL/링크 분류 규칙
+- URL만 포함된 입력(예: "https://example.com/article")은 → memo
+- URL과 함께 짧은 메모가 있는 경우에도 → memo (참고용 링크 저장)
+- URL이 포함되어 있더라도 명확한 행동 지시가 있으면 해당 카테고리 우선 (예: "이 링크 읽고 정리하기" → task)
 
 5단계 — 위 어디에도 해당하지 않으면 → inbox
 
@@ -116,9 +129,9 @@ ${calendar}
   "extracted_text": "이미지에서 추출한 텍스트 (이미지인 경우만, 그 외 null)",
   "summary": "간결한 명사구 제목",
   "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null). 반드시 한국 시간(KST, +09:00) 기준. 예: 2026-04-10T15:00:00+09:00",
-  "priority": "high" | "medium" | "low" (기본값: "medium". 확실한 긴급/중요 항목만 "high", 중요도가 낮은 항목만 "low"),
+  "context": "personal 또는 work (task/schedule 카테고리 포함 시 반드시 지정, 그 외 null). 업무/회사 관련이면 work, 개인 생활이면 personal. 판단이 어려우면 personal",
   "related_topics": ["관련 주제"]
-}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}`;
+}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n` : ''}`;
 }
 
 const classifySchema = z.object({
@@ -128,7 +141,7 @@ const classifySchema = z.object({
   extracted_text: z.string().nullable().optional(),
   summary: z.string().nullable().optional(),
   due_date: z.string().nullable().optional(),
-  priority: z.enum(['high', 'medium', 'low']).nullable().optional(),
+  context: z.enum(['personal', 'work']).nullable().optional(),
   related_topics: z.array(z.string()).optional(),
 });
 
@@ -140,16 +153,30 @@ const legacyCategorySchema = z.object({
   extracted_text: z.string().nullable().optional(),
   summary: z.string().nullable().optional(),
   due_date: z.string().nullable().optional(),
-  priority: z.enum(['high', 'medium', 'low']).nullable().optional(),
+  context: z.enum(['personal', 'work']).nullable().optional(),
   related_topics: z.array(z.string()).optional(),
 });
 
-export async function classifyText(text: string, options?: { maxTokens?: number; userPatterns?: string }): Promise<ClassifyResult> {
+/** Smart-sample long text: take beginning + ending for better context */
+export function smartTruncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const headLen = Math.floor(maxLen * 0.7);
+  const tailLen = maxLen - headLen - 20; // 20 for separator
+  return text.slice(0, headLen) + '\n\n[...중략...]\n\n' + text.slice(-tailLen);
+}
+
+export async function classifyText(
+  text: string,
+  options?: { maxTokens?: number; userPatterns?: string; userRules?: string; inputType?: string; textLength?: number }
+): Promise<ClassifyResult> {
+  const meta = options?.inputType
+    ? `[입력 유형: ${options.inputType}${options.textLength ? `, 원본 ${options.textLength.toLocaleString()}자` : ''}]\n\n`
+    : '';
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: options?.maxTokens ?? 800,
-    system: buildSystemPrompt(options?.userPatterns),
-    messages: [{ role: 'user', content: text }],
+    system: buildSystemPrompt(options?.userPatterns, options?.userRules),
+    messages: [{ role: 'user', content: meta + text }],
   });
 
   return parseResponse(response);
@@ -159,7 +186,7 @@ export async function classifyImage(
   imageBase64: string,
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp',
   text?: string,
-  options?: { userPatterns?: string }
+  options?: { userPatterns?: string; userRules?: string }
 ): Promise<ClassifyResult> {
   const content: Anthropic.Messages.ContentBlockParam[] = [
     {
@@ -177,7 +204,7 @@ export async function classifyImage(
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 800,
-    system: buildSystemPrompt(options?.userPatterns),
+    system: buildSystemPrompt(options?.userPatterns, options?.userRules),
     messages: [{ role: 'user', content }],
   });
 
@@ -254,7 +281,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         extracted_text: v.extracted_text ?? undefined,
         summary: v.summary ? fixSummaryDate(v.summary, v.due_date ?? undefined) : undefined,
         due_date: v.due_date ?? undefined,
-        priority: v.priority ?? 'medium',
+        context: v.context ?? undefined,
         related_topics: v.related_topics,
       };
     }
@@ -270,7 +297,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
         extracted_text: v.extracted_text ?? undefined,
         summary: v.summary ? fixSummaryDate(v.summary, v.due_date ?? undefined) : undefined,
         due_date: v.due_date ?? undefined,
-        priority: v.priority ?? 'medium',
+        context: v.context ?? undefined,
         related_topics: v.related_topics,
       };
     }

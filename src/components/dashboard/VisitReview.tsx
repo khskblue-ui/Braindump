@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
 import { hasCategory } from '@/types';
 import { X } from 'lucide-react';
@@ -22,15 +22,16 @@ export function VisitReview() {
   const hydrated = useEntryStore((s) => s._hydrated);
   const [summary, setSummary] = useState<ReviewSummary | null>(null);
 
-  useEffect(() => {
-    if (!hydrated) return;
+  // Memoize expensive filtering to avoid re-computing on every render
+  const computedSummary = useMemo(() => {
+    if (!hydrated) return null;
 
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(LS_KEY) : null;
     const lastSeen = raw ? new Date(raw) : null;
     const now = new Date();
 
     if (lastSeen && now.getTime() - lastSeen.getTime() < TWENTY_FOUR_HOURS) {
-      return;
+      return null;
     }
 
     const since = lastSeen ?? new Date(0);
@@ -56,8 +57,14 @@ export function VisitReview() {
       (e) => hasCategory(e, 'task') && !e.is_completed && !e.deleted_at
     ).length;
 
-    setSummary({ completedTasks, newIdeas, upcomingSchedules, incompleteTasks, since });
+    return { completedTasks, newIdeas, upcomingSchedules, incompleteTasks, since };
   }, [hydrated, entries]);
+
+  useEffect(() => {
+    if (computedSummary !== null) {
+      setSummary(computedSummary);
+    }
+  }, [computedSummary]);
 
   const handleDismiss = () => {
     localStorage.setItem(LS_KEY, new Date().toISOString());

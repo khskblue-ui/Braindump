@@ -7,15 +7,14 @@ async function recordClassifyPattern(
   supabase: SupabaseClient,
   userId: string,
   entryId: string,
-  original: { categories?: string[]; tags?: string[]; priority?: string },
-  updated: { categories?: string[]; tags?: string[]; priority?: string },
+  original: { categories?: string[]; tags?: string[] },
+  updated: { categories?: string[]; tags?: string[] },
   rawText?: string
 ) {
   const categoriesChanged = JSON.stringify(original.categories) !== JSON.stringify(updated.categories);
   const tagsChanged = JSON.stringify(original.tags?.sort()) !== JSON.stringify(updated.tags?.sort());
-  const priorityChanged = original.priority !== updated.priority;
 
-  if (!categoriesChanged && !tagsChanged && !priorityChanged) return;
+  if (!categoriesChanged && !tagsChanged) return;
 
   await supabase.from('user_classify_patterns').insert({
     user_id: userId,
@@ -24,8 +23,6 @@ async function recordClassifyPattern(
     corrected_categories: categoriesChanged ? updated.categories : null,
     original_tags: tagsChanged ? original.tags : null,
     corrected_tags: tagsChanged ? updated.tags : null,
-    original_priority: priorityChanged ? original.priority : null,
-    corrected_priority: priorityChanged ? updated.priority : null,
     keyword_context: rawText?.slice(0, 200) || null,
   });
 }
@@ -69,7 +66,7 @@ export async function PATCH(
 
   // Allowlist only updatable fields
   const allowed: Record<string, unknown> = {};
-  const fields = ['raw_text', 'categories', 'tags', 'topic', 'summary', 'due_date', 'priority', 'is_completed', 'is_pinned', 'deleted_at', 'reminders'] as const;
+  const fields = ['raw_text', 'categories', 'tags', 'topic', 'summary', 'due_date', 'priority', 'is_completed', 'is_pinned', 'deleted_at', 'reminders', 'context'] as const;
   for (const key of fields) {
     if (key in body) allowed[key] = body[key];
   }
@@ -101,7 +98,7 @@ export async function PATCH(
   if (!entry) return NextResponse.json({ error: '항목을 찾을 수 없습니다.' }, { status: 404 });
 
   // Record pattern if AI-classified fields were corrected
-  if (originalEntry && (allowed.categories !== undefined || allowed.tags !== undefined || allowed.priority !== undefined)) {
+  if (originalEntry && (allowed.categories !== undefined || allowed.tags !== undefined)) {
     await recordClassifyPattern(
       supabase,
       user.id,
@@ -109,12 +106,10 @@ export async function PATCH(
       {
         categories: originalEntry.categories,
         tags: originalEntry.tags,
-        priority: originalEntry.priority,
       },
       {
         categories: allowed.categories as string[] | undefined,
         tags: allowed.tags as string[] | undefined,
-        priority: allowed.priority as string | undefined,
       },
       originalEntry.raw_text
     ).catch((err) => console.error('Pattern recording error:', err));

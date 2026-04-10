@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useEntryStore } from '@/stores/entry-store';
 import { QuickCapture } from '@/components/capture/QuickCapture';
@@ -12,6 +12,7 @@ import { ReminderCheck } from '@/components/dashboard/ReminderCheck';
 import { TodayDashboard } from '@/components/dashboard/TodayDashboard';
 import { VisitReview } from '@/components/dashboard/VisitReview';
 import { PwaInstallPrompt } from '@/components/dashboard/PwaInstallPrompt';
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -42,13 +43,12 @@ export default function DashboardPage() {
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('edit');
   const [reclassifying, setReclassifying] = useState(false);
 
-  const openEntry = (entry: Entry) => {
+  const openEntry = useCallback((entry: Entry) => {
     if (sortMode) return;
     setSelectedEntry(entry);
-    // PDF or long extracted text → viewer, otherwise → edit
     const hasLongContent = entry.input_type === 'pdf' || (entry.extracted_text && entry.extracted_text.length > 200);
     setModalMode(hasLongContent ? 'view' : 'edit');
-  };
+  }, [sortMode]);
 
   const filter = useEntryStore((s) => s.filter);
   // M3: useMemo to avoid recalculating on every render
@@ -106,6 +106,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
+      {/* Onboarding Modal — shown only on first visit */}
+      <OnboardingModal />
+
       {/* Quick Capture */}
       <QuickCapture />
 
@@ -166,7 +169,7 @@ export default function DashboardPage() {
               <EntryCard
                 key={entry.id}
                 entry={entry}
-                onClick={() => openEntry(entry)}
+                onClick={openEntry}
                 sortMode={sortMode}
                 onMoveUp={idx > 0 ? () => moveEntry(entry.id, 'up') : undefined}
                 onMoveDown={idx < entries.length - 1 ? () => moveEntry(entry.id, 'down') : undefined}

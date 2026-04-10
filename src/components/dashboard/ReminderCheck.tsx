@@ -10,6 +10,20 @@ export function ReminderCheck() {
   // Track notified: "entryId:reminderOption"
   const notifiedRef = useRef(new Set<string>());
 
+  // Prune stale keys from notifiedRef when entries change
+  useEffect(() => {
+    const unsubscribe = useEntryStore.subscribe((state) => {
+      const validIds = new Set(state.entries.map((e) => e.id));
+      notifiedRef.current.forEach((key) => {
+        const entryId = key.split(':')[0];
+        if (!validIds.has(entryId)) {
+          notifiedRef.current.delete(key);
+        }
+      });
+    });
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     const checkReminders = () => {
       const now = Date.now();

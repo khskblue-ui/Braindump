@@ -15,7 +15,7 @@ interface ClassifyResult {
   extracted_text?: string;
   summary?: string;
   due_date?: string;
-  priority?: PriorityValue;
+  context?: 'personal' | 'work';
   related_topics?: string[];
 }
 
@@ -52,14 +52,17 @@ function buildCalendarReference(): string {
   );
 }
 
-function buildSystemPrompt(userPatterns?: string): string {
+function buildSystemPrompt(userPatterns?: string, userRules?: string): string {
   // Use Korean timezone (KST, UTC+9) for correct date/day-of-week
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   const todayStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const currentTimeStr = `${hours}:${minutes}`;
   const calendar = buildCalendarReference();
 
-  return `오늘은 ${todayStr}입니다. 모든 날짜와 요일은 한국 시간(KST, UTC+9) 기준으로 판단하세요.
+  return `오늘은 ${todayStr}이고, 현재 시각은 ${currentTimeStr} (한국 시간, KST)입니다. 모든 날짜와 요일은 한국 시간(KST, UTC+9) 기준으로 판단하세요.
 
 ## 날짜 참조 캘린더 (반드시 이 표를 참고하여 날짜를 결정하세요)
 ${calendar}
@@ -84,6 +87,19 @@ ${calendar}
 4단계 — 참고용 기록인가?
   사실/결과/상황 기록이면 → memo
   학습한 정보/개념 정리이면 → knowledge
+
+## 긴 문서/파일 분류 규칙
+- PDF, 긴 텍스트(1000자 이상)는 대부분 참고 자료입니다
+- 문서 전체의 주제와 목적을 파악하여 분류하세요
+- 학습/참고용 문서 → knowledge
+- 회의록, 기록물 → memo
+- 계약서, 일정표 등 기한 포함 → schedule + knowledge
+- 긴 문서를 inbox로 분류하지 마세요. knowledge 또는 memo 중 하나는 반드시 포함하세요
+
+## URL/링크 분류 규칙
+- URL만 포함된 입력(예: "https://example.com/article")은 → memo
+- URL과 함께 짧은 메모가 있는 경우에도 → memo (참고용 링크 저장)
+- URL이 포함되어 있더라도 명확한 행동 지시가 있으면 해당 카테고리 우선 (예: "이 링크 읽고 정리하기" → task)
 
 5단계 — 위 어디에도 해당하지 않으면 → inbox
 
@@ -115,6 +131,8 @@ ${calendar}
 - "다다음주"는 다음주의 다음 주
 - 요일만 언급된 경우: 캘린더에서 해당 요일을 찾아 가장 가까운 미래 날짜 사용
 - 특정 월/일만 있고 연도가 없으면 가장 가까운 미래의 해당 날짜
+- "N분 뒤/후", "N시간 뒤/후" 등 상대적 시간 표현은 반드시 위의 현재 시각 기준으로 계산하세요
+  예: 현재 11:00이고 "30분 뒤" → 11:30, "1시간 후" → 12:00, "2시간 반 뒤" → 13:30
 - schedule이 포함된 경우 summary에 날짜와 요일을 포함하세요
 - **중요**: 요일은 캘린더에서 직접 확인하세요. 직접 계산하지 마세요.
 
@@ -132,9 +150,9 @@ ${calendar}
   "extracted_text": "이미지에서 추출한 텍스트 (이미지인 경우만, 그 외 null)",
   "summary": "간결한 명사구 제목",
   "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null). 반드시 한국 시간(KST, +09:00) 기준. 예: 2026-04-10T15:00:00+09:00",
-  "priority": "high" | "medium" | "low" (기본값: "medium". 확실한 긴급/중요 항목만 "high", 중요도가 낮은 항목만 "low"),
+  "context": "personal 또는 work (task/schedule 카테고리 포함 시 반드시 지정, 그 외 null). 업무/회사 관련이면 work, 개인 생활이면 personal. 판단이 어려우면 personal",
   "related_topics": ["관련 주제"]
-}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}`;
+}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n` : ''}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -196,7 +214,7 @@ function isValidPriority(v: unknown): v is PriorityValue {
 }
 
 function parseNewFormat(parsed: Record<string, unknown>): ClassifyResult | null {
-  const { categories, tags, topic, extracted_text, summary, due_date, priority, related_topics } =
+  const { categories, tags, topic, extracted_text, summary, due_date, context, related_topics } =
     parsed;
 
   // categories: array of 1-3 valid values
@@ -216,7 +234,7 @@ function parseNewFormat(parsed: Record<string, unknown>): ClassifyResult | null 
         ? fixSummaryDate(summary, typeof due_date === "string" ? due_date : undefined)
         : undefined,
     due_date: typeof due_date === "string" ? due_date : undefined,
-    priority: isValidPriority(priority) ? priority : "medium",
+    context: (context === "personal" || context === "work") ? context : undefined,
     related_topics: Array.isArray(related_topics)
       ? related_topics.filter((t) => typeof t === "string")
       : undefined,
@@ -224,7 +242,7 @@ function parseNewFormat(parsed: Record<string, unknown>): ClassifyResult | null 
 }
 
 function parseLegacyFormat(parsed: Record<string, unknown>): ClassifyResult | null {
-  const { category, tags, topic, extracted_text, summary, due_date, priority, related_topics } =
+  const { category, tags, topic, extracted_text, summary, due_date, context, related_topics } =
     parsed;
 
   if (!isValidCategory(category)) return null;
@@ -241,7 +259,7 @@ function parseLegacyFormat(parsed: Record<string, unknown>): ClassifyResult | nu
         ? fixSummaryDate(summary, typeof due_date === "string" ? due_date : undefined)
         : undefined,
     due_date: typeof due_date === "string" ? due_date : undefined,
-    priority: isValidPriority(priority) ? priority : "medium",
+    context: (context === "personal" || context === "work") ? context : undefined,
     related_topics: Array.isArray(related_topics)
       ? related_topics.filter((t) => typeof t === "string")
       : undefined,
@@ -284,16 +302,27 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
 // Classify functions (text and image)
 // ---------------------------------------------------------------------------
 
+/** Smart-sample long text: take beginning + ending for better context */
+function smartTruncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const headLen = Math.floor(maxLen * 0.7);
+  const tailLen = maxLen - headLen - 20; // 20 for separator
+  return text.slice(0, headLen) + "\n\n[...중략...]\n\n" + text.slice(-tailLen);
+}
+
 async function classifyText(
   client: Anthropic,
   text: string,
-  options?: { maxTokens?: number; userPatterns?: string }
+  options?: { maxTokens?: number; userPatterns?: string; userRules?: string; inputType?: string; textLength?: number }
 ): Promise<ClassifyResult> {
+  const meta = options?.inputType
+    ? `[입력 유형: ${options.inputType}${options.textLength ? `, 원본 ${options.textLength.toLocaleString()}자` : ""}]\n\n`
+    : "";
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: options?.maxTokens ?? 800,
-    system: buildSystemPrompt(options?.userPatterns),
-    messages: [{ role: "user", content: text }],
+    system: buildSystemPrompt(options?.userPatterns, options?.userRules),
+    messages: [{ role: "user", content: meta + text }],
   });
   return parseResponse(response);
 }
@@ -303,7 +332,7 @@ async function classifyImage(
   imageBase64: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp",
   text?: string,
-  options?: { userPatterns?: string }
+  options?: { userPatterns?: string; userRules?: string }
 ): Promise<ClassifyResult> {
   const content: Anthropic.Messages.ContentBlockParam[] = [
     {
@@ -321,7 +350,7 @@ async function classifyImage(
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 800,
-    system: buildSystemPrompt(options?.userPatterns),
+    system: buildSystemPrompt(options?.userPatterns, options?.userRules),
     messages: [{ role: "user", content }],
   });
 
@@ -333,6 +362,7 @@ async function classifyImage(
 // ---------------------------------------------------------------------------
 
 const MAX_TEXT_LENGTH = 10_000;
+const MAX_PDF_TEXT_LENGTH = 100_000;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -345,6 +375,12 @@ function isAllowedImageUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:") return false;
+    // Only allow images from our Supabase storage to prevent SSRF
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    if (supabaseUrl) {
+      const allowed = new URL(supabaseUrl);
+      if (parsed.hostname !== allowed.hostname) return false;
+    }
     return true;
   } catch {
     return false;
@@ -391,9 +427,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // ── Parse request body ────────────────────────────────────────────────
   let entry_id: string;
+  let bodyUserId: string | undefined;
   try {
     const body = await req.json();
     entry_id = body?.entry_id;
+    bodyUserId = body?.user_id;
   } catch {
     return jsonResponse({ error: "요청 본문을 파싱할 수 없습니다." }, 400);
   }
@@ -413,14 +451,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return jsonResponse({ error: "항목을 찾을 수 없습니다." }, 404);
   }
 
-  // If JWT auth succeeded, verify user owns the entry
-  // If JWT auth failed, use entry's user_id (entry must already exist on server,
-  // proving the user authenticated successfully during creation)
+  // Verify ownership: JWT auth or body user_id must match entry owner
   const entryUserId = entry.user_id as string;
-  if (userId && userId !== entryUserId) {
-    return jsonResponse({ error: "권한이 없습니다." }, 403);
+  if (userId) {
+    // JWT auth succeeded — verify user owns the entry
+    if (userId !== entryUserId) {
+      return jsonResponse({ error: "권한이 없습니다." }, 403);
+    }
+  } else {
+    // JWT auth failed (e.g., iOS SDK anon key race) — require user_id in body
+    // This prevents unauthenticated access: attacker needs both entry_id AND user_id
+    if (!bodyUserId || bodyUserId !== entryUserId) {
+      return jsonResponse({ error: "인증이 필요합니다." }, 401);
+    }
   }
-  // Use the entry's user_id for subsequent queries
   const effectiveUserId = userId || entryUserId;
 
   // ── Fetch user classify patterns for personalization ──────────────────
@@ -449,21 +493,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Non-critical — proceed without patterns
   }
 
+  // ── Fetch user custom rules for priority injection ───────────────────
+  let userRules: string | undefined;
+  try {
+    const { data: rules } = await supabase
+      .from("user_classify_rules")
+      .select("keyword, category, context")
+      .eq("user_id", effectiveUserId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (rules && rules.length > 0) {
+      userRules = rules.map((r: Record<string, unknown>) => {
+        const ctx = r.context ? ` (${r.context === "personal" ? "개인" : "회사"})` : "";
+        return `- "${r.keyword}" 키워드 → 반드시 ${r.category} 포함${ctx}`;
+      }).join("\n");
+    }
+  } catch {
+    // Non-critical — proceed without rules
+  }
+
   // ── Classify ──────────────────────────────────────────────────────────
   const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
+  const entryInputType: string = (entry.input_type as string) || "text";
   let result: ClassifyResult;
 
   try {
     const rawText: string = (entry.raw_text as string) || "";
     const extractedText: string = (entry.extracted_text as string) || "";
     const imageUrl: string | null = (entry.image_url as string | null) ?? null;
-    const inputType: string = (entry.input_type as string) || "text";
 
     // Combine raw_text + extracted_text (from on-device OCR) for text classification
     const textToClassify = [rawText, extractedText].filter(Boolean).join("\n\n");
 
-    if (imageUrl && (inputType === "image" || inputType === "mixed")) {
+    if (imageUrl && (entryInputType === "image" || entryInputType === "mixed")) {
       // Validate URL
       if (!isAllowedImageUrl(imageUrl)) {
         return jsonResponse({ error: "허용되지 않은 이미지 URL입니다." }, 400);
@@ -489,24 +552,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ) as "image/jpeg" | "image/png" | "image/webp";
 
       // Truncate long text for classification (full text is already stored in DB)
-      const clippedText = textToClassify.length > MAX_TEXT_LENGTH
-        ? textToClassify.slice(0, MAX_TEXT_LENGTH)
-        : textToClassify;
+      const clippedText = smartTruncate(textToClassify, MAX_TEXT_LENGTH);
 
-      result = await classifyImage(anthropic, base64, mediaType, clippedText || undefined, { userPatterns });
+      result = await classifyImage(anthropic, base64, mediaType, clippedText || undefined, { userPatterns, userRules });
     } else if (textToClassify) {
       // Text-only classification (includes on-device OCR extracted text from iOS)
-      const clippedText = textToClassify.length > MAX_TEXT_LENGTH
-        ? textToClassify.slice(0, MAX_TEXT_LENGTH)
-        : textToClassify;
+      const textLimit = entryInputType === "pdf" ? MAX_PDF_TEXT_LENGTH : MAX_TEXT_LENGTH;
+      const clippedText = smartTruncate(textToClassify, textLimit);
 
-      result = await classifyText(anthropic, clippedText, { userPatterns });
+      const classifyOptions = entryInputType === "pdf"
+        ? { userPatterns, userRules, maxTokens: 1500, inputType: "PDF", textLength: textToClassify.length }
+        : { userPatterns, userRules, inputType: entryInputType, textLength: textToClassify.length };
+
+      result = await classifyText(anthropic, clippedText, classifyOptions);
     } else {
       return jsonResponse({ error: "분류할 내용이 없습니다." }, 400);
     }
   } catch (err) {
     console.error("Classification error:", err);
     return jsonResponse({ categories: ["inbox"], tags: [], error: "Classification failed" }, 500);
+  }
+
+  // For PDF entries: ensure knowledge category (PDFs are typically reference material)
+  if (entryInputType === "pdf") {
+    if (result.categories.length === 1 && (result.categories[0] === "inbox" || result.categories[0] === "memo")) {
+      result.categories = ["knowledge"];
+    } else if (!result.categories.includes("knowledge")) {
+      result.categories = [...result.categories, "knowledge"];
+    }
   }
 
   // ── Build update payload ──────────────────────────────────────────────
@@ -519,12 +592,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     categories: result.categories,
     tags: result.tags,
     summary: result.summary || null,
-    priority: result.priority || null,
     ai_metadata: result,
   };
-  if (result.extracted_text) updateData.extracted_text = result.extracted_text;
+  // Only update extracted_text for image entries where the AI provides OCR.
+  // For PDF/text entries, on-device extraction already stored the full text — don't overwrite.
+  if (result.extracted_text && (entryInputType === "image" || entryInputType === "mixed")) {
+    updateData.extracted_text = result.extracted_text;
+  }
   if (topic) updateData.topic = topic;
   if (result.due_date) updateData.due_date = result.due_date;
+  // Only set context for task/schedule entries
+  if (result.context && (result.categories.includes("task") || result.categories.includes("schedule"))) {
+    updateData.context = result.context;
+  }
 
   // ── Persist results ───────────────────────────────────────────────────
   const { error: updateError } = await supabase

@@ -5,13 +5,13 @@ import { Entry, CATEGORY_MAP, hasCategory, primaryCategory } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Square, Clock, FileText, Pin, ChevronUp, ChevronDown } from 'lucide-react';
+import { Check, Square, Clock, FileText, Pin, ChevronUp, ChevronDown, User, Building2 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 interface EntryCardProps {
   entry: Entry;
-  onClick?: () => void;
+  onClick?: (entry: Entry) => void;
   sortMode?: boolean;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
@@ -29,7 +29,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick, sortMode, onM
   return (
     <Card
       className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98] relative"
-      onClick={onClick}
+      onClick={() => onClick?.(entry)}
     >
       <CardContent className="p-4">
         <div className="flex gap-3">
@@ -63,6 +63,27 @@ export const EntryCard = memo(function EntryCard({ entry, onClick, sortMode, onM
                     </span>
                   );
                 })}
+                {entry.context && (hasCategory(entry, 'task') || hasCategory(entry, 'schedule')) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateEntry(entry.id, { context: entry.context === 'personal' ? 'work' : 'personal' });
+                    }}
+                    className="text-xs font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
+                    style={{
+                      backgroundColor: entry.context === 'personal' ? '#3B82F618' : '#7C3AED18',
+                      color: entry.context === 'personal' ? '#3B82F6' : '#7C3AED',
+                    }}
+                  >
+                    {entry.context === 'personal' ? (
+                      <User className="h-3 w-3" strokeWidth={2} />
+                    ) : (
+                      <Building2 className="h-3 w-3" strokeWidth={2} />
+                    )}
+                    {entry.context === 'personal' ? '개인' : '회사'}
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {sortMode ? (

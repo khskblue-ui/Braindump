@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { isAllowedImageUrl } from '@/lib/url-validation';
-import { classifyText, classifyImage } from '@/lib/classify';
+import { classifyText, classifyImage, smartTruncate } from '@/lib/classify';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
 
 const MAX_BATCH = 50;
 const MAX_TEXT_LENGTH = 10000;
 const CONCURRENCY = 4; // Parallel AI calls
+
+// Fetch user's custom classify rules and format as prompt string
+async function fetchUserRules(supabase: SupabaseClient, userId: string): Promise<string | undefined> {
+  const { data: rules } = await supabase
+    .from('user_classify_rules')
+    .select('keyword, category, context')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (!rules?.length) return undefined;
+  return rules.map((r: { keyword: string; category: string; context: string | null }) => {
+    const ctx = r.context ? ` (${r.context === 'personal' ? '개인' : '회사'})` : '';
+    return `- "${r.keyword}" 키워드 → 반드시 ${r.category} 포함${ctx}`;
+  }).join('\n');
+}
 
 // PATCH: 미분류(inbox) 항목 일괄 재분류 — 병렬 처리 (동시성 제한)
 export async function PATCH() {
@@ -28,6 +44,34 @@ export async function PATCH() {
 
   const limited = inboxEntries.slice(0, MAX_BATCH);
 
+  // Fetch user correction patterns once for all entries (personalization)
+  const { data: patterns } = await supabase
+    .from('user_classify_patterns')
+    .select('original_categories,corrected_categories,original_tags,corrected_tags,keyword_context')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  const userPatterns = patterns?.length ? patterns.map((p: {
+    original_categories: string[] | null;
+    corrected_categories: string[] | null;
+    original_tags: string[] | null;
+    corrected_tags: string[] | null;
+    keyword_context: string | null;
+  }) => {
+    const parts: string[] = [];
+    if (p.original_categories && p.corrected_categories) {
+      parts.push(`"${p.keyword_context?.slice(0, 50) || '...'}" → 카테고리: ${p.original_categories.join(',')} → ${p.corrected_categories.join(',')}`);
+    }
+    if (p.original_tags && p.corrected_tags) {
+      parts.push(`태그: [${p.original_tags.join(',')}] → [${p.corrected_tags.join(',')}]`);
+    }
+    return parts.join('; ');
+  }).filter(Boolean).join('\n') : undefined;
+
+  // Fetch user's custom rules
+  const userRules = await fetchUserRules(supabase, user.id);
+
   // Process in parallel with concurrency limit
   const results: Array<{ id: string; category: string; error?: string }> = [];
   let reclassified = 0;
@@ -36,7 +80,7 @@ export async function PATCH() {
   for (let i = 0; i < limited.length; i += CONCURRENCY) {
     const chunk = limited.slice(i, i + CONCURRENCY);
     const chunkResults = await Promise.allSettled(
-      chunk.map((entry) => classifySingleEntry(entry, supabase, user))
+      chunk.map((entry) => classifySingleEntry(entry, supabase, user, userPatterns, userRules))
     );
 
     for (let j = 0; j < chunkResults.length; j++) {
@@ -59,7 +103,9 @@ export async function PATCH() {
 async function classifySingleEntry(
   entry: Record<string, unknown>,
   supabase: SupabaseClient,
-  user: User
+  user: User,
+  userPatterns?: string,
+  userRules?: string
 ): Promise<string | null> {
   const rawText = (entry.raw_text as string) || '';
   const imageUrl = entry.image_url as string | null;
@@ -77,12 +123,13 @@ async function classifySingleEntry(
     result = await classifyImage(
       base64,
       contentType as 'image/jpeg' | 'image/png' | 'image/webp',
-      rawText ? rawText.slice(0, MAX_TEXT_LENGTH) : undefined
+      rawText ? rawText.slice(0, MAX_TEXT_LENGTH) : undefined,
+      { userPatterns, userRules }
     );
   } else {
     const textToClassify = [rawText, (entry.extracted_text as string) || ''].filter(Boolean).join('\n\n');
     if (!textToClassify) return null;
-    result = await classifyText(textToClassify.slice(0, MAX_TEXT_LENGTH));
+    result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, inputType: entry.input_type as string || 'text', textLength: textToClassify.length });
   }
 
   const topic =
@@ -94,18 +141,29 @@ async function classifySingleEntry(
     categories: result.categories,
     tags: result.tags,
     summary: result.summary || null,
-    priority: result.priority || null,
     ai_metadata: result,
   };
-  if (result.extracted_text) updateData.extracted_text = result.extracted_text;
+  // Only update extracted_text for image entries where the AI provides OCR.
+  // For PDF/text entries, on-device extraction already stored the full text — don't overwrite.
+  if (result.extracted_text && (inputType === 'image' || inputType === 'mixed')) {
+    updateData.extracted_text = result.extracted_text;
+  }
   if (topic) updateData.topic = topic;
   if (result.due_date) updateData.due_date = result.due_date;
+  // Only set context for task/schedule entries
+  if (result.context && (result.categories.includes('task') || result.categories.includes('schedule'))) {
+    updateData.context = result.context;
+  }
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('entries')
     .update(updateData)
     .eq('id', entry.id as string)
     .eq('user_id', user.id);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
 
   return result.categories[0];
 }
@@ -157,6 +215,9 @@ export async function POST(request: NextRequest) {
     return parts.join('; ');
   }).filter(Boolean).join('\n') : undefined;
 
+  // Fetch user's custom rules
+  const userRules = await fetchUserRules(supabase, user.id);
+
   try {
     let result;
 
@@ -174,14 +235,14 @@ export async function POST(request: NextRequest) {
       const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
       const mediaType = contentType as 'image/jpeg' | 'image/png' | 'image/webp';
       const rawText = (entry.raw_text || '').slice(0, MAX_TEXT_LENGTH);
-      result = await classifyImage(base64, mediaType, rawText || undefined, { userPatterns });
+      result = await classifyImage(base64, mediaType, rawText || undefined, { userPatterns, userRules });
     } else {
       // Combine raw_text + extracted_text (from on-device OCR) for text classification
       const textToClassify = [entry.raw_text, entry.extracted_text].filter(Boolean).join('\n\n');
       if (!textToClassify) {
         return NextResponse.json({ error: '분류할 내용이 없습니다.' }, { status: 400 });
       }
-      result = await classifyText(textToClassify.slice(0, MAX_TEXT_LENGTH), { userPatterns });
+      result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, inputType: entry.input_type || 'text', textLength: textToClassify.length });
     }
 
     const topic =
@@ -193,12 +254,19 @@ export async function POST(request: NextRequest) {
       categories: result.categories,
       tags: result.tags,
       summary: result.summary || null,
-      priority: result.priority || null,
       ai_metadata: result,
     };
-    if (result.extracted_text) updateData.extracted_text = result.extracted_text;
+    // Only update extracted_text for image entries where the AI provides OCR.
+    // For PDF/text entries, on-device extraction already stored the full text — don't overwrite.
+    if (result.extracted_text && (entry.input_type === 'image' || entry.input_type === 'mixed')) {
+      updateData.extracted_text = result.extracted_text;
+    }
     if (topic) updateData.topic = topic;
     if (result.due_date) updateData.due_date = result.due_date;
+    // Only set context for task/schedule entries
+    if (result.context && (result.categories.includes('task') || result.categories.includes('schedule'))) {
+      updateData.context = result.context;
+    }
 
     const { error: updateError } = await supabase
       .from('entries')

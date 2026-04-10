@@ -84,8 +84,13 @@ export async function GET(request: NextRequest) {
     dbQuery = dbQuery.or(`tags::text.ilike.%${sanitizedTag}%`);
   }
 
+  const context = searchParams.get('context');
+  if (context && (context === 'personal' || context === 'work')) {
+    dbQuery = dbQuery.eq('context', context);
+  }
+
   if (query) {
-    const q = query.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const q = query.replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/,/g, '\\,').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
     const tagQuery = query.replace(/^#/, '');
 
     // Two separate queries: text search + tag search, merged client-side
@@ -102,6 +107,9 @@ export async function GET(request: NextRequest) {
     if (category && category !== 'all') {
       textQuery.contains('categories', [category]);
     }
+    if (context && (context === 'personal' || context === 'work')) {
+      textQuery.eq('context', context);
+    }
 
     const tagSearchQuery = supabase
       .from('entries')
@@ -114,6 +122,9 @@ export async function GET(request: NextRequest) {
 
     if (category && category !== 'all') {
       tagSearchQuery.contains('categories', [category]);
+    }
+    if (context && (context === 'personal' || context === 'work')) {
+      tagSearchQuery.eq('context', context);
     }
 
     const [textResult, tagResult] = await Promise.all([textQuery, tagSearchQuery]);
@@ -142,7 +153,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     const allEntries = [...merged.values()].sort((a, b) => {
       if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
       if (catSortMap.size > 0) {
@@ -152,9 +162,6 @@ export async function GET(request: NextRequest) {
         if (aOrder != null) return -1;
         if (bOrder != null) return 1;
       }
-      const pa = a.priority ? (priorityOrder[a.priority] ?? 3) : 3;
-      const pb = b.priority ? (priorityOrder[b.priority] ?? 3) : 3;
-      if (pa !== pb) return pa - pb;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
@@ -192,9 +199,8 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Unified sort: pinned → category sort_order (if available) → priority → created_at
+  // Unified sort: pinned → category sort_order (if available) → created_at
   if (sortedEntries.length > 0) {
-    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     sortedEntries = [...sortedEntries].sort((a, b) => {
       if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
       if (catSortMap.size > 0) {
@@ -204,9 +210,6 @@ export async function GET(request: NextRequest) {
         if (aOrder != null) return -1;
         if (bOrder != null) return 1;
       }
-      const pa = a.priority ? (priorityOrder[a.priority] ?? 3) : 3;
-      const pb = b.priority ? (priorityOrder[b.priority] ?? 3) : 3;
-      if (pa !== pb) return pa - pb;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }

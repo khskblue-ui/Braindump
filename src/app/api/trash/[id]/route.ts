@@ -59,11 +59,13 @@ export async function DELETE(
     }
   }
 
+  // Only allow permanent deletion of trashed entries
   const { error } = await supabase
     .from('entries')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .not('deleted_at', 'is', null);
 
   if (error) {
     console.error('Permanent delete error:', error);
