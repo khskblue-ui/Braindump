@@ -44,8 +44,20 @@ export function InstallGuideModal({ open, onClose }: InstallGuideModalProps) {
     );
   }
 
-  // In-app browser or non-Safari iOS → redirect to external browser
+  // In-app browser or non-Safari iOS
   if (browserCtx.type === 'inapp' || browserCtx.type === 'ios-non-safari') {
+    const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    // iOS in-app: show TestFlight link directly
+    if (isIOS) {
+      return (
+        <ModalShell onClose={onClose} title="앱 설치하기">
+          <div className="px-6 pt-4 pb-8">
+            <IOSGuide />
+          </div>
+        </ModalShell>
+      );
+    }
+    // Android in-app: show web usage guide
     return (
       <ModalShell onClose={onClose}>
         <div className="px-6 pt-4 pb-8">
@@ -292,92 +304,99 @@ function StepItem({
   );
 }
 
-/* ─── iOS Safari Guide ─── */
+/* ─── iOS Guide (TestFlight native app) ─── */
+
+const TESTFLIGHT_URL = 'https://testflight.apple.com/join/wuF7Bn8a';
 
 function IOSGuide() {
   return (
     <div className="space-y-6">
-      <p className="text-sm text-gray-500">
-        Safari에서 아래 단계를 따라해 주세요.
+      <div className="text-center py-2">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-4">
+          <svg viewBox="0 0 32 32" className="w-8 h-8">
+            <path
+              d="M10 8h6c2.2 0 4 1.8 4 4 0 1.5-.8 2.7-2 3.4 1.6.6 2.8 2.2 2.8 4.1 0 2.5-2 4.5-4.5 4.5H10V8z M13 11v3.5h2.5c1 0 1.7-.8 1.7-1.75S16.5 11 15.5 11H13z M13 17.5V21h3c1.1 0 2-.9 2-1.75s-.9-1.75-2-1.75H13z"
+              fill="white"
+            />
+          </svg>
+        </div>
+        <h3 className="font-bold text-lg mb-2">iOS 앱을 설치하세요</h3>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          네이티브 앱으로 더 빠르고 편리하게 사용할 수 있습니다.
+          <br />
+          음성 입력, 공유 등 모든 기능을 지원합니다.
+        </p>
+      </div>
+
+      <a
+        href={TESTFLIGHT_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+      >
+        <Download className="h-4 w-4" />
+        TestFlight에서 설치하기
+      </a>
+
+      <p className="text-xs text-center text-gray-400">
+        현재 베타 테스트 중이며, App Store 정식 출시 예정입니다.
       </p>
-
-      <StepItem
-        step={1}
-        icon={
-          <span className="flex items-center justify-center w-6 h-6 rounded bg-blue-100">
-            <Share className="h-3.5 w-3.5 text-blue-600" />
-          </span>
-        }
-        title="공유 버튼 탭"
-        description="Safari 하단의 공유 버튼(네모에서 화살표가 나오는 아이콘)을 탭하세요."
-      />
-
-      <StepItem
-        step={2}
-        icon={
-          <span className="flex items-center justify-center w-6 h-6 rounded bg-gray-100">
-            <PlusSquare className="h-3.5 w-3.5 text-gray-600" />
-          </span>
-        }
-        title="홈 화면에 추가"
-        description="목록을 스크롤해서 '홈 화면에 추가'를 찾아 탭하세요."
-      />
-
-      <StepItem
-        step={3}
-        icon={
-          <span className="flex items-center justify-center w-6 h-6 rounded bg-green-100">
-            <Check className="h-3.5 w-3.5 text-green-600" />
-          </span>
-        }
-        title="추가 완료"
-        description="오른쪽 상단의 '추가'를 탭하면 홈 화면에 BrainDump 앱이 생깁니다."
-      />
     </div>
   );
 }
 
-/* ─── Android Chrome Guide ─── */
+/* ─── Android Guide ─── */
 
 function AndroidGuide() {
   return (
     <div className="space-y-6">
-      <p className="text-sm text-gray-500">
-        Chrome에서 아래 단계를 따라해 주세요.
-      </p>
+      <div className="text-center py-2">
+        <div className="mx-auto w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+            <line x1="12" y1="18" x2="12" y2="18" />
+          </svg>
+        </div>
+        <h3 className="font-bold text-lg mb-2">Android 앱 준비 중</h3>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          Android 전용 앱은 현재 개발 중입니다.
+          <br />
+          그동안 웹 브라우저에서 바로 사용하실 수 있습니다.
+        </p>
+      </div>
 
-      <StepItem
-        step={1}
-        icon={
-          <span className="flex items-center justify-center w-6 h-6 rounded bg-gray-100">
-            <MoreVertical className="h-3.5 w-3.5 text-gray-600" />
-          </span>
-        }
-        title="메뉴 열기"
-        description="Chrome 우측 상단의 점 세 개(⋮) 메뉴를 탭하세요."
-      />
+      <a
+        href="/login"
+        className="w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+      >
+        브라우저에서 바로 시작하기
+      </a>
 
-      <StepItem
-        step={2}
-        icon={
-          <span className="flex items-center justify-center w-6 h-6 rounded bg-blue-100">
-            <Download className="h-3.5 w-3.5 text-blue-600" />
-          </span>
-        }
-        title="앱 설치 또는 홈 화면에 추가"
-        description="'앱 설치' 또는 '홈 화면에 추가'를 탭하세요. 설치 확인 팝업이 나타나면 '설치'를 누르세요."
-      />
-
-      <StepItem
-        step={3}
-        icon={
-          <span className="flex items-center justify-center w-6 h-6 rounded bg-green-100">
-            <Check className="h-3.5 w-3.5 text-green-600" />
-          </span>
-        }
-        title="설치 완료"
-        description="홈 화면에 BrainDump 앱이 추가됩니다. 탭해서 바로 실행하세요."
-      />
+      <div className="border-t border-gray-100 pt-5">
+        <p className="text-xs text-gray-400 mb-3">홈 화면에 바로가기를 추가할 수도 있습니다</p>
+        <div className="space-y-4">
+          <StepItem
+            step={1}
+            icon={
+              <span className="flex items-center justify-center w-6 h-6 rounded bg-gray-100">
+                <MoreVertical className="h-3.5 w-3.5 text-gray-600" />
+              </span>
+            }
+            title="Chrome 메뉴 열기"
+            description="우측 상단의 점 세 개(⋮) 메뉴를 탭하세요."
+          />
+          <StepItem
+            step={2}
+            icon={
+              <span className="flex items-center justify-center w-6 h-6 rounded bg-blue-100">
+                <Download className="h-3.5 w-3.5 text-blue-600" />
+              </span>
+            }
+            title="홈 화면에 추가"
+            description="'앱 설치' 또는 '홈 화면에 추가'를 탭하세요."
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -387,35 +406,51 @@ function AndroidGuide() {
 function DesktopGuide() {
   return (
     <div className="space-y-6">
-      <div className="text-center py-4">
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-          <svg viewBox="0 0 32 32" className="w-8 h-8">
-            <defs>
-              <linearGradient id="install-logo" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#3B82F6" />
-                <stop offset="100%" stopColor="#7C3AED" />
-              </linearGradient>
-            </defs>
-            <rect width="32" height="32" rx="7" fill="url(#install-logo)" />
-            <path
-              d="M10 8h6c2.2 0 4 1.8 4 4 0 1.5-.8 2.7-2 3.4 1.6.6 2.8 2.2 2.8 4.1 0 2.5-2 4.5-4.5 4.5H10V8z M13 11v3.5h2.5c1 0 1.7-.8 1.7-1.75S16.5 11 15.5 11H13z M13 17.5V21h3c1.1 0 2-.9 2-1.75s-.9-1.75-2-1.75H13z"
-              fill="white"
-            />
-          </svg>
+      <div className="text-center py-2">
+        <div className="mx-auto w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+          <Check className="h-6 w-6 text-blue-600" />
         </div>
-        <h3 className="font-bold text-lg mb-2">모바일에서 설치하세요</h3>
+        <h3 className="font-bold text-lg mb-2">데스크탑에서 바로 사용 가능합니다</h3>
         <p className="text-sm text-gray-500 leading-relaxed">
-          BrainDump는 모바일에 최적화된 앱입니다.
+          별도 설치 없이 이 브라우저에서 그대로 사용하세요.
           <br />
-          스마트폰으로 이 페이지에 접속한 뒤 설치해 주세요.
+          로그인하면 모바일 앱과 데이터가 자동으로 동기화됩니다.
         </p>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-4 text-center">
-        <p className="text-xs text-gray-400 mb-2">접속 주소</p>
-        <p className="text-sm font-mono font-medium text-gray-700">
-          braindump-jet.vercel.app
-        </p>
+      <a
+        href="/home"
+        className="w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+      >
+        바로 사용하기
+      </a>
+
+      <div className="border-t border-gray-100 pt-5">
+        <div className="bg-gray-50 rounded-xl p-4">
+          <p className="text-xs font-medium text-gray-500 mb-2">모바일 앱도 있습니다</p>
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <svg viewBox="0 0 32 32" className="w-5 h-5">
+                <path
+                  d="M10 8h6c2.2 0 4 1.8 4 4 0 1.5-.8 2.7-2 3.4 1.6.6 2.8 2.2 2.8 4.1 0 2.5-2 4.5-4.5 4.5H10V8z M13 11v3.5h2.5c1 0 1.7-.8 1.7-1.75S16.5 11 15.5 11H13z M13 17.5V21h3c1.1 0 2-.9 2-1.75s-.9-1.75-2-1.75H13z"
+                  fill="white"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-800">iOS 앱</p>
+              <p className="text-xs text-gray-400">TestFlight 베타 · App Store 출시 예정</p>
+            </div>
+            <a
+              href={TESTFLIGHT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-shrink-0 text-xs font-medium text-blue-600 hover:underline"
+            >
+              설치
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
