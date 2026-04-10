@@ -59,13 +59,13 @@ function MicAnimation() {
   );
 }
 
-/* AI Classification Animation — emphasizes automatic, effortless sorting */
+/* AI Classification Animation — one input, one card, multiple category badges */
 function AIClassifyAnimation() {
   return (
     <div className="w-full max-w-[280px] mx-auto">
       {/* Input text appears */}
       <div className="bg-white border border-gray-200 rounded-xl p-3 mb-3 animate-fade-in-fast">
-        <p className="text-xs text-gray-700">&ldquo;다음주 수요일 치과 예약, 그리고 프레젠테이션 자료 준비할 것&rdquo;</p>
+        <p className="text-[11px] text-gray-700">&ldquo;다음주 수요일까지 발표 자료 준비&rdquo;</p>
       </div>
 
       {/* AI processing indicator */}
@@ -82,20 +82,25 @@ function AIClassifyAnimation() {
         <span className="text-[10px] text-blue-400 font-medium">AI 분류 중</span>
       </div>
 
-      {/* Results pop in as separate cards */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 animate-classify-result-1">
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: '#F9731615', color: '#F97316' }}>
-            일정
-          </span>
-          <span className="text-[10px] text-gray-600">다음주 수요일 치과 예약</span>
-        </div>
-        <div className="flex items-center gap-2 animate-classify-result-2">
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: '#3B82F615', color: '#3B82F6' }}>
+      {/* Single result card with multiple badges */}
+      <div className="bg-white border border-gray-200 rounded-xl p-3 animate-classify-result-1">
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: '#3B82F620', color: '#3B82F6' }}>
             할 일
           </span>
-          <span className="text-[10px] text-gray-600">프레젠테이션 자료 준비</span>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: '#F9731620', color: '#F97316' }}>
+            일정
+          </span>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md animate-classify-result-2" style={{ backgroundColor: '#6B728020', color: '#6B7280' }}>
+            회사
+          </span>
         </div>
+        <p className="text-[11px] text-gray-800 font-medium mb-1.5">다음주 수요일까지 발표 자료 준비</p>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">#발표</span>
+          <span className="text-[9px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">#자료준비</span>
+        </div>
+        <p className="text-[9px] text-orange-500 mt-1.5">⏰ 4월 16일 (수)</p>
       </div>
     </div>
   );
