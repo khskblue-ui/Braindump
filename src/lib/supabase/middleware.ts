@@ -28,7 +28,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isLanding = pathname === '/';
   const isAuthPage = pathname.startsWith('/login');
-  const isPublicPage = pathname.startsWith('/privacy');
+  const isPublicPage = pathname.startsWith('/privacy') || pathname.startsWith('/guide');
   const isApiRoute = pathname.startsWith('/api');
 
   // API 라우트는 각 핸들러에서 requireAuth() → getUser()로 검증

@@ -14,10 +14,14 @@ export default function LandingLayout({
             <Logo className="h-6 w-6" />
             <span>BrainDump</span>
           </Link>
-          <Link
-            href="/login"
-            className="flex items-center gap-2 text-sm font-medium"
-          >
+          <div className="flex items-center gap-6">
+            <Link href="/guide" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
+              가이드
+            </Link>
+            <Link
+              href="/login"
+              className="flex items-center gap-2 text-sm font-medium"
+            >
             시작하기
             <span className="flex items-center justify-center w-7 h-7 rounded-full bg-black text-white">
               <svg
@@ -34,6 +38,7 @@ export default function LandingLayout({
               </svg>
             </span>
           </Link>
+          </div>
         </div>
       </header>
       {children}

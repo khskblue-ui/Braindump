@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Trash2, Save, Brain, ChevronRight, BookOpen, History, ListChecks } from 'lucide-react';
+import { Settings, LogOut, Trash2, Save, Brain, ChevronRight, BookOpen, History, ListChecks, FileText, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -84,13 +84,6 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-1">
-          <Link href="/settings/classify-guide" className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors">
-            <div className="flex items-center gap-2.5">
-              <BookOpen className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-              <span className="text-sm">분류 기준 안내</span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-          </Link>
           <Link href="/settings/classify-patterns" className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors">
             <div className="flex items-center gap-2.5">
               <History className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
@@ -147,6 +140,29 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+      {/* 도움말 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BookOpen className="h-4 w-4" strokeWidth={1.5} /> 도움말
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <a
+            href="/guide"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-sm">사용 가이드</span>
+            </div>
+            <ExternalLink className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          </a>
+        </CardContent>
+      </Card>
+
       {/* 계정 관리 */}
       <Card>
         <CardHeader>

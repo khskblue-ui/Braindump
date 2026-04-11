@@ -164,12 +164,23 @@ export function OnboardingModal() {
 
         {/* Action button */}
         {isLastStep ? (
-          <button
-            onClick={complete}
-            className="w-full max-w-xs py-3.5 rounded-2xl bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold text-base transition-colors"
-          >
-            시작하기
-          </button>
+          <div className="w-full max-w-xs flex flex-col gap-2">
+            <button
+              onClick={complete}
+              className="w-full py-3.5 rounded-2xl bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold text-base transition-colors"
+            >
+              바로 시작
+            </button>
+            <button
+              onClick={() => {
+                window.open('/guide', '_blank');
+                complete();
+              }}
+              className="w-full py-3.5 rounded-2xl border border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-semibold text-base transition-colors"
+            >
+              가이드 보기
+            </button>
+          </div>
         ) : (
           <button
             onClick={handleNext}
