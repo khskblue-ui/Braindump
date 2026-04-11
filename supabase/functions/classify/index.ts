@@ -156,7 +156,7 @@ ${calendar}
   "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null). 반드시 한국 시간(KST, +09:00) 기준. 예: 2026-04-10T15:00:00+09:00",
   "context": "personal 또는 work (모든 카테고리에 적용). 업무/회사/직장 관련이면 work, 개인 생활/취미/건강이면 personal. 맥락이 불분명하면 null",
   "related_topics": ["관련 주제"]
-}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n` : ''}`;
+}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하고, context가 지정된 경우 반드시 해당 값으로 설정하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n` : ''}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -508,8 +508,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .limit(20);
     if (rules && rules.length > 0) {
       userRules = rules.map((r: Record<string, unknown>) => {
-        const ctx = r.context ? ` (${r.context === "personal" ? "개인" : "회사"})` : "";
-        return `- "${r.keyword}" 키워드 → 반드시 ${r.category} 포함${ctx}`;
+        const ctxDirective = r.context
+          ? `, context를 반드시 "${r.context}"로 설정`
+          : "";
+        return `- "${r.keyword}" 키워드 → 반드시 ${r.category} 포함${ctxDirective}`;
       }).join("\n");
     }
   } catch {

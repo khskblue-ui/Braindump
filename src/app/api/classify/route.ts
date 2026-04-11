@@ -20,8 +20,10 @@ async function fetchUserRules(supabase: SupabaseClient, userId: string): Promise
 
   if (!rules?.length) return undefined;
   return rules.map((r: { keyword: string; category: string; context: string | null }) => {
-    const ctx = r.context ? ` (${r.context === 'personal' ? '개인' : '회사'})` : '';
-    return `- "${r.keyword}" 키워드 → 반드시 ${r.category} 포함${ctx}`;
+    const ctxDirective = r.context
+      ? `, context를 반드시 "${r.context}"로 설정`
+      : '';
+    return `- "${r.keyword}" 키워드 → 반드시 ${r.category} 포함${ctxDirective}`;
   }).join('\n');
 }
 

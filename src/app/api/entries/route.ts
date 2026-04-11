@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
   if (tag) {
     const sanitizedTag = tag.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    dbQuery = dbQuery.or(`tags::text.ilike.%${sanitizedTag}%`);
+    dbQuery = dbQuery.filter('tags::text', 'ilike', `%${sanitizedTag}%`);
   }
 
   const context = searchParams.get('context');
@@ -107,9 +107,6 @@ export async function GET(request: NextRequest) {
     if (category && category !== 'all') {
       textQuery.contains('categories', [category]);
     }
-    if (context && (context === 'personal' || context === 'work')) {
-      textQuery.or(`context.eq.${context},context.is.null`);
-    }
 
     const tagSearchQuery = supabase
       .from('entries')
@@ -123,9 +120,6 @@ export async function GET(request: NextRequest) {
     if (category && category !== 'all') {
       tagSearchQuery.contains('categories', [category]);
     }
-    if (context && (context === 'personal' || context === 'work')) {
-      tagSearchQuery.or(`context.eq.${context},context.is.null`);
-    }
 
     const [textResult, tagResult] = await Promise.all([textQuery, tagSearchQuery]);
 
@@ -137,6 +131,10 @@ export async function GET(request: NextRequest) {
     // Merge and deduplicate by id, apply unified sort
     const merged = new Map<string, typeof textResult.data[0]>();
     for (const e of [...(textResult.data || []), ...(tagResult.data || [])]) {
+      // Apply context filter in JS to avoid double .or() conflict with PostgREST
+      if (context && (context === 'personal' || context === 'work')) {
+        if (e.context !== context && e.context !== null) continue;
+      }
       if (!merged.has(e.id)) merged.set(e.id, e);
     }
 
