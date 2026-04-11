@@ -163,10 +163,8 @@ export async function POST(request: NextRequest) {
         topic,
         ai_metadata: result,
       };
-      // Only set context for task/schedule entries
-      if (result.context && (categories.includes('task') || categories.includes('schedule'))) {
-        updateData.context = result.context;
-      }
+      // Set context for all categories (null when ambiguous)
+      updateData.context = result.context ?? null;
 
       await supabase
         .from('entries')

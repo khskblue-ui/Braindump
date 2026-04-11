@@ -10,11 +10,10 @@ export function CategoryTabs() {
   const current = filter.category || 'all';
 
   const handleClick = (value: string) => {
-    // Reset context filter when category changes
+    // Keep context filter when category changes (global filter)
     setFilter({
       ...filter,
       category: value === 'all' ? undefined : (value as typeof filter.category),
-      context: undefined,
     });
   };
 
@@ -22,7 +21,7 @@ export function CategoryTabs() {
     setFilter({ ...filter, context: ctx });
   };
 
-  const showContextFilter = current === 'task' || current === 'schedule';
+  const showContextFilter = true;
 
   return (
     <div className="space-y-1">

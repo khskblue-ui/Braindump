@@ -150,10 +150,8 @@ async function classifySingleEntry(
   }
   if (topic) updateData.topic = topic;
   if (result.due_date) updateData.due_date = result.due_date;
-  // Only set context for task/schedule entries
-  if (result.context && (result.categories.includes('task') || result.categories.includes('schedule'))) {
-    updateData.context = result.context;
-  }
+  // Set context for all categories (null when ambiguous)
+  updateData.context = result.context ?? null;
 
   const { error: updateError } = await supabase
     .from('entries')
@@ -263,10 +261,8 @@ export async function POST(request: NextRequest) {
     }
     if (topic) updateData.topic = topic;
     if (result.due_date) updateData.due_date = result.due_date;
-    // Only set context for task/schedule entries
-    if (result.context && (result.categories.includes('task') || result.categories.includes('schedule'))) {
-      updateData.context = result.context;
-    }
+    // Set context for all categories (null when ambiguous)
+    updateData.context = result.context ?? null;
 
     const { error: updateError } = await supabase
       .from('entries')

@@ -63,7 +63,7 @@ export const EntryCard = memo(function EntryCard({ entry, onClick, sortMode, onM
                     </span>
                   );
                 })}
-                {entry.context && (hasCategory(entry, 'task') || hasCategory(entry, 'schedule')) && (
+                {entry.context && (
                   <button
                     type="button"
                     onClick={(e) => {

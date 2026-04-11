@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useEntryStore } from '@/stores/entry-store';
-import type { Entry, EntryCategory, EntryPriority, ReminderOption } from '@/types';
+import type { Entry, EntryCategory, EntryContext, EntryPriority, ReminderOption } from '@/types';
 import { CATEGORIES, REMINDER_OPTIONS, hasCategory } from '@/types';
 import {
   Dialog,
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Sparkles, Pin, PinOff } from 'lucide-react';
+import { Trash2, Sparkles, Pin, PinOff, User, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -42,6 +42,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
   const [reminders, setReminders] = useState<ReminderOption[]>(entry.reminders || []);
+  const [context, setContext] = useState<EntryContext | null>(entry.context || null);
   const [isPinned, setIsPinned] = useState(entry.is_pinned || false);
   const [saving, setSaving] = useState(false);
   const [reclassifying, setReclassifying] = useState(false);
@@ -58,6 +59,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
         priority: (priority as EntryPriority) || null,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         reminders,
+        context,
         is_pinned: isPinned,
       });
       toast.success('수정되었습니다.');
@@ -103,6 +105,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
         const pad = (n: number) => String(n).padStart(2, '0');
         setDueDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
       }
+      if (result.context !== undefined) setContext(result.context ?? null);
 
       // Update store directly (no second API call)
       useEntryStore.setState((state) => ({
@@ -117,6 +120,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
                 extracted_text: result.extracted_text ?? e.extracted_text,
                 due_date: result.due_date ?? e.due_date,
                 priority: result.priority ?? e.priority,
+                context: result.context !== undefined ? (result.context ?? null) : e.context,
               }
             : e
         ),
@@ -239,6 +243,49 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
                     }}
                   >
                     {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Context (personal/work) */}
+          <div>
+            <label className="text-sm font-medium">컨텍스트</label>
+            <div className="flex gap-1.5 mt-1">
+              {([
+                { label: '미지정', value: null, icon: null, color: undefined },
+                { label: '개인', value: 'personal' as EntryContext, icon: User, color: '#3B82F6' },
+                { label: '회사', value: 'work' as EntryContext, icon: Building2, color: '#7C3AED' },
+              ] as const).map((item) => {
+                const isSelected = context === item.value;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => setContext(item.value)}
+                    className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                      isSelected
+                        ? item.color
+                          ? ''
+                          : 'bg-foreground text-background'
+                        : 'opacity-60 hover:opacity-100'
+                    }`}
+                    style={item.color ? {
+                      backgroundColor: `${item.color}18`,
+                      color: item.color,
+                      outlineColor: isSelected ? item.color : undefined,
+                      outlineWidth: isSelected ? '2px' : undefined,
+                      outlineOffset: '1px',
+                      outlineStyle: isSelected ? 'solid' : undefined,
+                    } : isSelected ? undefined : {
+                      backgroundColor: 'var(--muted)',
+                      color: 'var(--muted-foreground)',
+                    }}
+                  >
+                    {Icon && <Icon className="h-3 w-3" strokeWidth={2} />}
+                    {item.label}
                   </button>
                 );
               })}
