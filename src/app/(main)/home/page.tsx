@@ -39,13 +39,20 @@ export default function DashboardPage() {
   const sortMode = useEntryStore((s) => s.sortMode);
   const setSortMode = useEntryStore((s) => s.setSortMode);
   const moveEntry = useEntryStore((s) => s.moveEntry);
-  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('edit');
+  const [editFromViewer, setEditFromViewer] = useState(false);
+
+  // Always use the latest version from the store so viewer/editor reflect edits
+  const selectedEntry = useMemo(() => {
+    if (!selectedEntryId) return null;
+    return entries.find((e) => e.id === selectedEntryId) ?? null;
+  }, [selectedEntryId, entries]);
   const [reclassifying, setReclassifying] = useState(false);
 
   const openEntry = useCallback((entry: Entry) => {
     if (sortMode) return;
-    setSelectedEntry(entry);
+    setSelectedEntryId(entry.id);
     const hasLongContent = entry.input_type === 'pdf' || (entry.extracted_text && entry.extracted_text.length > 200);
     setModalMode(hasLongContent ? 'view' : 'edit');
   }, [sortMode]);
@@ -193,8 +200,11 @@ export default function DashboardPage() {
         <EntryViewerModal
           entry={selectedEntry}
           open
-          onClose={() => setSelectedEntry(null)}
-          onEdit={() => setModalMode('edit')}
+          onClose={() => setSelectedEntryId(null)}
+          onEdit={() => {
+            setEditFromViewer(true);
+            setModalMode('edit');
+          }}
         />
       )}
 
@@ -203,7 +213,15 @@ export default function DashboardPage() {
         <EntryEditModal
           entry={selectedEntry}
           open
-          onClose={() => setSelectedEntry(null)}
+          onClose={() => {
+            if (editFromViewer) {
+              // Return to viewer with updated entry from store
+              setEditFromViewer(false);
+              setModalMode('view');
+            } else {
+              setSelectedEntryId(null);
+            }
+          }}
         />
       )}
 
