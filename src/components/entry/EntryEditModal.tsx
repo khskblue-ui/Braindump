@@ -50,7 +50,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateEntry(entry.id, {
+      const updateData: Record<string, unknown> = {
         raw_text: rawText || undefined,
         summary: summary || null,
         categories,
@@ -61,7 +61,13 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
         reminders,
         context,
         is_pinned: isPinned,
-      });
+      };
+      // When rawText is modified and entry has extracted_text,
+      // sync extracted_text so the viewer shows the latest content
+      if (rawText !== (entry.raw_text || '') && entry.extracted_text) {
+        updateData.extracted_text = rawText || null;
+      }
+      await updateEntry(entry.id, updateData);
       toast.success('수정되었습니다.');
       onClose();
     } catch {
