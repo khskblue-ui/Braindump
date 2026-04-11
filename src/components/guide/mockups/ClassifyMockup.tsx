@@ -3,43 +3,102 @@
 import { User, Building2 } from 'lucide-react';
 import { MockupFrame } from '../MockupFrame';
 import { CATEGORY_INFO, FLOW_STEPS, MULTI_CATEGORY_EXAMPLES, LONG_DOC_RULES } from '../data/classify-data';
+import {
+  motion, AnimatePresence,
+  spring, ease,
+  fadeUp, fadeIn, scaleIn, fadeLeft,
+  staggerContainer, stepState,
+} from '../motion-helpers';
 
 type Platform = 'ios' | 'web';
 
-function IOSContent() {
+export const CLASSIFY_CAPTIONS = [
+  { text: '생각을 입력하는 순간' },
+  { text: 'AI가 내용을 분석합니다' },
+  { text: '카테고리와 맥락이 자동 분류됨' },
+  { text: '날짜 감지 시 마감일도 자동 설정' },
+];
+export const CLASSIFY_DURATIONS = [1500, 1500, 1500, 1500];
+
+function IOSContent({ step = -1 }: { step?: number }) {
   return (
     <div className="px-3 pt-2 pb-4">
       {/* Input animation */}
-      <div className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 mb-3">
-        <p className="text-[9px] text-gray-600">&ldquo;금요일 오후 2시 디자인 리뷰 미팅&rdquo;</p>
-      </div>
+      <motion.div
+        variants={fadeUp}
+        animate={stepState(step, 0)}
+        transition={{ ...spring, delay: 0 }}
+      >
+        <div className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 mb-3">
+          <p className="text-[9px] text-gray-600">&ldquo;금요일 오후 2시 디자인 리뷰 미팅&rdquo;</p>
+        </div>
+      </motion.div>
 
       {/* AI processing */}
-      <div className="flex items-center justify-center gap-1.5 mb-3">
-        <div className="flex gap-0.5">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
-          ))}
+      <motion.div
+        variants={fadeIn}
+        animate={stepState(step, 1)}
+        transition={{ ...ease }}
+      >
+        <div className="flex items-center justify-center gap-1.5 mb-3">
+          <div className="flex gap-0.5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
+            ))}
+          </div>
+          <span className="text-[8px] text-blue-400 font-medium">AI 분류 중</span>
         </div>
-        <span className="text-[8px] text-blue-400 font-medium">AI 분류 중</span>
-      </div>
+      </motion.div>
 
       {/* Result card */}
-      <div className="bg-white border border-gray-200 rounded-xl p-2.5 shadow-sm">
-        <div className="flex items-center gap-1 mb-1.5">
-          <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#F973161A', color: '#F97316' }}>일정</span>
-          <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#3B82F61A', color: '#3B82F6' }}>할 일</span>
-          <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#7C3AED1A', color: '#7C3AED' }}>업무</span>
-        </div>
-        <p className="text-[9px] text-gray-800 font-medium mb-1">금요일 오후 2시 디자인 리뷰 미팅</p>
-        <div className="flex items-center gap-1">
-          <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#디자인</span>
-          <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#미팅</span>
-        </div>
-        <p className="text-[7px] text-orange-500 mt-1">⏰ 금요일 14:00</p>
-      </div>
+      <motion.div
+        variants={scaleIn}
+        animate={stepState(step, 2)}
+        transition={{ ...spring }}
+      >
+        <div className="bg-white border border-gray-200 rounded-xl p-2.5 shadow-sm">
+          <motion.div
+            className="flex items-center gap-1 mb-1.5"
+            variants={staggerContainer(0.12)}
+            animate={stepState(step, 2)}
+          >
+            {(['일정', '할 일', '업무'] as const).map((label, i) => {
+              const colorMap: Record<string, { bg: string; text: string }> = {
+                '일정': { bg: '#F973161A', text: '#F97316' },
+                '할 일': { bg: '#3B82F61A', text: '#3B82F6' },
+                '업무': { bg: '#7C3AED1A', text: '#7C3AED' },
+              };
+              return (
+                <motion.span
+                  key={i}
+                  variants={fadeLeft}
+                  transition={{ ...spring, delay: i * 0.12 }}
+                  className="text-[8px] font-semibold px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: colorMap[label].bg, color: colorMap[label].text }}
+                >
+                  {label}
+                </motion.span>
+              );
+            })}
+          </motion.div>
+          <p className="text-[9px] text-gray-800 font-medium mb-1">금요일 오후 2시 디자인 리뷰 미팅</p>
 
-      {/* Category preview */}
+          {/* Tags + time */}
+          <motion.div
+            variants={fadeUp}
+            animate={stepState(step, 3)}
+            transition={{ ...spring }}
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#디자인</span>
+              <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#미팅</span>
+            </div>
+            <p className="text-[7px] text-orange-500 mt-1">⏰ 금요일 14:00</p>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Category preview - always visible */}
       <div className="mt-3 grid grid-cols-3 gap-1.5">
         {CATEGORY_INFO.slice(0, 6).map((cat) => (
           <div key={cat.value} className="flex items-center gap-1 px-1.5 py-1 rounded-md" style={{ backgroundColor: cat.color + '0D' }}>
@@ -54,35 +113,85 @@ function IOSContent() {
   );
 }
 
-function WebContent() {
+function WebContent({ step = -1 }: { step?: number }) {
   return (
     <div className="p-4 sm:p-6">
       {/* Input → Result flow */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl p-3">
-          <p className="text-[10px] text-gray-500 mb-1">입력</p>
-          <p className="text-[10px] text-gray-800">&ldquo;다음주 수요일까지 발표 자료 준비&rdquo;</p>
-        </div>
-        <div className="flex items-center justify-center">
+        {/* Input box */}
+        <motion.div
+          className="flex-1"
+          variants={fadeUp}
+          animate={stepState(step, 0)}
+          transition={{ ...spring, delay: 0 }}
+        >
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 h-full">
+            <p className="text-[10px] text-gray-500 mb-1">입력</p>
+            <p className="text-[10px] text-gray-800">&ldquo;다음주 수요일까지 발표 자료 준비&rdquo;</p>
+          </div>
+        </motion.div>
+
+        {/* Arrow */}
+        <motion.div
+          className="flex items-center justify-center"
+          variants={fadeIn}
+          animate={stepState(step, 1)}
+          transition={{ ...ease }}
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-90 sm:rotate-0">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
-        </div>
-        <div className="flex-1 bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
-          <p className="text-[10px] text-gray-500 mb-1">AI 결과</p>
-          <div className="flex items-center gap-1 mb-1.5">
-            <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#3B82F61A', color: '#3B82F6' }}>할 일</span>
-            <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#F973161A', color: '#F97316' }}>일정</span>
-            <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#7C3AED1A', color: '#7C3AED' }}>업무</span>
+        </motion.div>
+
+        {/* Result box */}
+        <motion.div
+          className="flex-1"
+          variants={scaleIn}
+          animate={stepState(step, 2)}
+          transition={{ ...spring }}
+        >
+          <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm h-full">
+            <p className="text-[10px] text-gray-500 mb-1">AI 결과</p>
+            <motion.div
+              className="flex items-center gap-1 mb-1.5"
+              variants={staggerContainer(0.12)}
+              animate={stepState(step, 2)}
+            >
+              {(['할 일', '일정', '업무'] as const).map((label, i) => {
+                const colorMap: Record<string, { bg: string; text: string }> = {
+                  '할 일': { bg: '#3B82F61A', text: '#3B82F6' },
+                  '일정': { bg: '#F973161A', text: '#F97316' },
+                  '업무': { bg: '#7C3AED1A', text: '#7C3AED' },
+                };
+                return (
+                  <motion.span
+                    key={i}
+                    variants={fadeLeft}
+                    transition={{ ...spring, delay: i * 0.12 }}
+                    className="text-[8px] font-semibold px-1.5 py-0.5 rounded"
+                    style={{ backgroundColor: colorMap[label].bg, color: colorMap[label].text }}
+                  >
+                    {label}
+                  </motion.span>
+                );
+              })}
+            </motion.div>
+
+            {/* Tags */}
+            <motion.div
+              className="flex items-center gap-1"
+              variants={fadeUp}
+              animate={stepState(step, 3)}
+              transition={{ ...spring }}
+            >
+              <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#발표</span>
+              <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#자료준비</span>
+            </motion.div>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#발표</span>
-            <span className="text-[7px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded">#자료준비</span>
-          </div>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Category grid */}
+      {/* Category grid - always visible */}
       <div className="grid grid-cols-3 gap-2">
         {CATEGORY_INFO.map((cat) => (
           <div key={cat.value} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-gray-100">
@@ -204,10 +313,10 @@ export function ClassifyDetails() {
   );
 }
 
-export function ClassifyMockup({ platform }: { platform: Platform }) {
+export function ClassifyMockup({ platform, step = -1 }: { platform: Platform; step?: number }) {
   return (
     <MockupFrame platform={platform}>
-      {platform === 'ios' ? <IOSContent /> : <WebContent />}
+      {platform === 'ios' ? <IOSContent step={step} /> : <WebContent step={step} />}
     </MockupFrame>
   );
 }

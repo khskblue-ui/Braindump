@@ -1,10 +1,142 @@
 'use client';
 
 import { MockupFrame } from '../MockupFrame';
+import {
+  motion, AnimatePresence,
+  springSnappy,
+} from '../motion-helpers';
+import { TapIndicator } from '../TapIndicator';
 
 type Platform = 'ios' | 'web';
 
-function IOSContent() {
+export const QUICKCAPTURE_CAPTIONS_IOS = [
+  { text: '텍스트를 자유롭게 입력하세요' },
+  { text: '전송하면 AI가 자동으로 분류' },
+  { text: '사진을 찍거나 앨범에서 선택' },
+  { text: '음성으로 말하면 자동 변환' },
+];
+export const QUICKCAPTURE_CAPTIONS_WEB = [
+  { text: '텍스트를 자유롭게 입력하세요' },
+  { text: '전송하면 AI가 자동으로 분류' },
+  { text: 'PDF 문서를 업로드해서 분석' },
+  { text: '음성으로 말하면 자동 변환' },
+];
+export const QUICKCAPTURE_DURATIONS = [2500, 2500, 2500, 2500];
+
+// Icon path groups
+const ICON_GALLERY = ['M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z', 'M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2l1.586-1.586a2 2 0 0 1 2.828 0L20 14'];
+const ICON_CAMERA = ['M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z', 'M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'];
+const ICON_PDF = ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6'];
+const ICON_MIC = ['M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z', 'M19 10v1a7 7 0 0 1-14 0v-1', 'M12 19v3'];
+const ICON_SEND = 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z';
+
+function WaveformBars() {
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 12 }, (_, i) => (
+        <motion.div
+          key={i}
+          className="w-0.5 bg-red-400 rounded-full"
+          animate={{ height: [4, 8 + (i % 3) * 4, 4] }}
+          transition={{
+            duration: 0.5 + (i % 3) * 0.15,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 0.05,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function IOSContent({ step = -1, subPhase = 'action' }: { step?: number; subPhase?: 'action' | 'reaction' }) {
+  const showNewCard = step === 1 && subPhase === 'reaction';
+  const showCameraThumb = step === 2 && subPhase === 'reaction';
+  const showRecording = step === 3 && subPhase === 'action';
+  const showTranscribed = step === 3 && subPhase === 'reaction';
+
+  // Input area content
+  let inputContent: React.ReactNode;
+  if (showRecording) {
+    inputContent = (
+      <motion.div
+        key="recording"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex items-center gap-1.5"
+      >
+        <motion.div
+          className="w-2 h-2 rounded-full bg-red-500"
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+        <WaveformBars />
+      </motion.div>
+    );
+  } else if (showTranscribed) {
+    inputContent = (
+      <motion.span
+        key="transcribed"
+        initial={{ opacity: 0, width: 0 }}
+        animate={{ opacity: 1, width: 'auto' }}
+        transition={{ duration: 1.2, ease: 'easeOut' }}
+        className="text-[9px] text-gray-800 font-medium overflow-hidden whitespace-nowrap inline-block"
+      >
+        내일 약속 장소 변경됨
+      </motion.span>
+    );
+  } else if (showCameraThumb) {
+    inputContent = (
+      <motion.div
+        key="camera-thumb"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="flex items-center gap-1.5"
+      >
+        <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center shrink-0">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d={ICON_CAMERA[0]} />
+            <path d={ICON_CAMERA[1]} />
+          </svg>
+        </div>
+        <span className="text-[8px] text-gray-400">사진 1장</span>
+      </motion.div>
+    );
+  } else if (step === 0 || (step === 1 && subPhase === 'action')) {
+    inputContent = (
+      <motion.span
+        key="typed"
+        initial={{ opacity: 0, width: 0 }}
+        animate={step === 1 && subPhase === 'action' ? { opacity: 0 } : { opacity: 1, width: 'auto' }}
+        transition={step === 1 && subPhase === 'action' ? { duration: 0.3 } : { duration: 1.8, ease: 'easeOut' }}
+        className="text-[9px] text-gray-800 font-medium overflow-hidden whitespace-nowrap inline-block"
+      >
+        금요일 팀 미팅 자료 준비
+      </motion.span>
+    );
+  } else if (step >= 0) {
+    inputContent = (
+      <motion.span
+        key="typed-static"
+        initial={{ opacity: 0, width: 0 }}
+        animate={{ opacity: 1, width: 'auto' }}
+        transition={{ duration: 1.8, ease: 'easeOut' }}
+        className="text-[9px] text-gray-800 font-medium overflow-hidden whitespace-nowrap inline-block"
+      >
+        금요일 팀 미팅 자료 준비
+      </motion.span>
+    );
+  } else {
+    inputContent = (
+      <motion.span key="placeholder" className="text-[9px] text-gray-400">
+        생각을 입력하세요...
+      </motion.span>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-blue-50/60 via-purple-50/40 to-pink-50/60">
       {/* Header */}
@@ -39,27 +171,60 @@ function IOSContent() {
       <div className="px-3 py-1.5">
         <div className="bg-white rounded-xl border border-gray-200/80 p-2.5 shadow-sm">
           <div className="min-h-[36px] flex items-start">
-            <span className="text-[9px] text-gray-400">생각을 입력하세요...</span>
+            <AnimatePresence mode="wait">
+              {inputContent}
+            </AnimatePresence>
           </div>
         </div>
         {/* Attachment icons row */}
         <div className="flex items-center justify-between mt-1.5 px-0.5">
           <div className="flex items-center gap-2.5">
-            {[
-              ['M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z', 'M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2l1.586-1.586a2 2 0 0 1 2.828 0L20 14'],
-              ['M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z', 'M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
-              ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6'],
-              ['M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z', 'M19 10v1a7 7 0 0 1-14 0v-1', 'M12 19v3'],
-            ].map((paths, i) => (
-              <svg key={i} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                {paths.map((d, j) => <path key={j} d={d} />)}
+            {/* Gallery icon */}
+            <div>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {ICON_GALLERY.map((d, j) => <path key={j} d={d} />)}
               </svg>
-            ))}
+            </div>
+
+            {/* Camera icon — step 2 action: TapIndicator */}
+            <div className="relative">
+              <TapIndicator active={step === 2 && subPhase === 'action'} x="50%" y="50%" size={22} color="#22C55E" />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {ICON_CAMERA.map((d, j) => <path key={j} d={d} />)}
+              </svg>
+            </div>
+
+            {/* PDF icon */}
+            <div>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {ICON_PDF.map((d, j) => <path key={j} d={d} />)}
+              </svg>
+            </div>
+
+            {/* Mic icon — step 3 action: TapIndicator */}
+            <div className="relative">
+              <TapIndicator active={step === 3 && subPhase === 'action'} x="50%" y="50%" size={22} color="#EF4444" />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {ICON_MIC.map((d, j) => <path key={j} d={d} />)}
+              </svg>
+            </div>
           </div>
-          <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-            </svg>
+
+          {/* Send button — step 1 action: TapIndicator + scale bounce */}
+          <div className="relative">
+            <TapIndicator active={step === 1 && subPhase === 'action'} x="50%" y="50%" size={28} color="#3B82F6" />
+            <motion.div
+              className="w-7 h-7 rounded-full flex items-center justify-center"
+              animate={{
+                backgroundColor: step >= 0 ? '#3B82F6' : '#f3f4f6',
+                scale: step === 1 && subPhase === 'action' ? [1, 1.2, 1] : 1,
+              }}
+              transition={{ scale: { type: 'tween', duration: 0.35 }, ...springSnappy }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={step >= 0 ? 'white' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d={ICON_SEND} />
+              </svg>
+            </motion.div>
           </div>
         </div>
       </div>
@@ -104,6 +269,29 @@ function IOSContent() {
 
       {/* Entry cards */}
       <div className="flex-1 px-3 space-y-1.5 overflow-hidden">
+        {/* New card inserted at top — step 1 reaction */}
+        <AnimatePresence>
+          {showNewCard && (
+            <motion.div
+              key="new-card"
+              initial={{ opacity: 0, y: -16, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={springSnappy}
+              className="bg-blue-50/50 rounded-xl p-2.5 border border-blue-200/60 shadow-sm overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[6.5px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: '#EAB30818', color: '#EAB308' }}>할 일</span>
+                  <span className="text-[6.5px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: '#7C3AED18', color: '#7C3AED' }}>업무</span>
+                </div>
+                <span className="text-[6px] text-gray-400">방금</span>
+              </div>
+              <p className="text-[9px] text-gray-800 font-medium leading-snug">금요일 팀 미팅 자료 준비</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {[
           { cats: ['아이디어', '할 일'], catColors: ['#EAB308', '#3B82F6'], ctx: '개인', ctxColor: '#3B82F6', time: '3시간 전', text: '새로운 독서 앱 아이디어 정리', tags: ['#앱', '#기획', '#독서'], pinned: true, hasCheck: true },
           { cats: ['일정'], catColors: ['#F97316'], ctx: '업무', ctxColor: '#7C3AED', time: '1일 전', text: '금요일 오후 3시 팀 미팅', tags: ['#미팅', '#기획'], pinned: false, hasCheck: false },
@@ -169,7 +357,92 @@ function IOSContent() {
   );
 }
 
-function WebContent() {
+function WebContent({ step = -1, subPhase = 'action' }: { step?: number; subPhase?: 'action' | 'reaction' }) {
+  const showNewCard = step === 1 && subPhase === 'reaction';
+  const showPdfThumb = step === 2 && subPhase === 'reaction';
+  const showRecording = step === 3 && subPhase === 'action';
+  const showTranscribed = step === 3 && subPhase === 'reaction';
+
+  // Input area content
+  let inputContent: React.ReactNode;
+  if (showRecording) {
+    inputContent = (
+      <motion.div
+        key="recording"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex items-center gap-2"
+      >
+        <motion.div
+          className="w-2.5 h-2.5 rounded-full bg-red-500"
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+        <WaveformBars />
+      </motion.div>
+    );
+  } else if (showTranscribed) {
+    inputContent = (
+      <motion.span
+        key="transcribed"
+        initial={{ opacity: 0, width: 0 }}
+        animate={{ opacity: 1, width: 'auto' }}
+        transition={{ duration: 1.2, ease: 'easeOut' }}
+        className="text-[10px] text-gray-800 font-medium overflow-hidden whitespace-nowrap inline-block"
+      >
+        내일 약속 장소 변경됨
+      </motion.span>
+    );
+  } else if (showPdfThumb) {
+    inputContent = (
+      <motion.div
+        key="pdf-thumb"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="flex items-center gap-2"
+      >
+        <div className="w-8 h-10 rounded bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            {ICON_PDF.map((d, j) => <path key={j} d={d} />)}
+          </svg>
+        </div>
+        <span className="text-[9px] text-gray-500">document.pdf</span>
+      </motion.div>
+    );
+  } else if (step === 0 || (step === 1 && subPhase === 'action')) {
+    inputContent = (
+      <motion.span
+        key="typed"
+        initial={{ opacity: 0, width: 0 }}
+        animate={step === 1 && subPhase === 'action' ? { opacity: 0 } : { opacity: 1, width: 'auto' }}
+        transition={step === 1 && subPhase === 'action' ? { duration: 0.3 } : { duration: 1.8, ease: 'easeOut' }}
+        className="text-[10px] text-gray-800 font-medium overflow-hidden whitespace-nowrap inline-block"
+      >
+        금요일 팀 미팅 자료 준비
+      </motion.span>
+    );
+  } else if (step >= 0) {
+    inputContent = (
+      <motion.span
+        key="typed-static"
+        initial={{ opacity: 0, width: 0 }}
+        animate={{ opacity: 1, width: 'auto' }}
+        transition={{ duration: 1.8, ease: 'easeOut' }}
+        className="text-[10px] text-gray-800 font-medium overflow-hidden whitespace-nowrap inline-block"
+      >
+        금요일 팀 미팅 자료 준비
+      </motion.span>
+    );
+  } else {
+    inputContent = (
+      <motion.span key="placeholder" className="text-[10px] text-gray-400">
+        생각을 입력하세요...
+      </motion.span>
+    );
+  }
+
   return (
     <div className="bg-gradient-to-br from-blue-50/60 via-purple-50/40 to-pink-50/60 min-h-full">
       {/* Header */}
@@ -193,22 +466,49 @@ function WebContent() {
         {/* Input area */}
         <div className="bg-white border border-gray-200 rounded-xl p-3 mb-3 shadow-sm">
           <div className="min-h-[48px] mb-2">
-            <span className="text-[10px] text-gray-400">생각을 입력하세요...</span>
+            <AnimatePresence mode="wait">
+              {inputContent}
+            </AnimatePresence>
           </div>
           <div className="flex items-center justify-end gap-2 border-t border-gray-100 pt-2">
-            {[
-              ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6'],
-              ['M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z', 'M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2l1.586-1.586a2 2 0 0 1 2.828 0L20 14'],
-              ['M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z', 'M19 10v1a7 7 0 0 1-14 0v-1', 'M12 19v3'],
-            ].map((paths, i) => (
-              <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                {paths.map((d, j) => <path key={j} d={d} />)}
+            {/* PDF icon — step 2 action: TapIndicator */}
+            <div className="relative">
+              <TapIndicator active={step === 2 && subPhase === 'action'} x="50%" y="50%" size={26} color="#F97316" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {ICON_PDF.map((d, j) => <path key={j} d={d} />)}
               </svg>
-            ))}
-            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center ml-1">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+            </div>
+
+            {/* Gallery icon */}
+            <div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {ICON_GALLERY.map((d, j) => <path key={j} d={d} />)}
               </svg>
+            </div>
+
+            {/* Mic icon — step 3 action: TapIndicator */}
+            <div className="relative">
+              <TapIndicator active={step === 3 && subPhase === 'action'} x="50%" y="50%" size={26} color="#EF4444" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {ICON_MIC.map((d, j) => <path key={j} d={d} />)}
+              </svg>
+            </div>
+
+            {/* Send button — step 1 action: TapIndicator + scale bounce */}
+            <div className="relative">
+              <TapIndicator active={step === 1 && subPhase === 'action'} x="50%" y="50%" size={32} color="#3B82F6" />
+              <motion.div
+                className="w-8 h-8 rounded-full flex items-center justify-center ml-1"
+                animate={{
+                  scale: step === 1 && subPhase === 'action' ? [1, 1.2, 1] : 1,
+                }}
+                transition={{ scale: { type: 'tween', duration: 0.35 }, ...springSnappy }}
+                style={{ backgroundColor: '#3B82F6' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={ICON_SEND} />
+                </svg>
+              </motion.div>
             </div>
           </div>
         </div>
@@ -263,6 +563,29 @@ function WebContent() {
 
         {/* Entry cards */}
         <div className="space-y-2">
+          {/* New card inserted at top — step 1 reaction */}
+          <AnimatePresence>
+            {showNewCard && (
+              <motion.div
+                key="new-card"
+                initial={{ opacity: 0, y: -16, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={springSnappy}
+                className="bg-blue-50/50 px-3 py-2.5 rounded-xl border border-blue-200/60 shadow-sm overflow-hidden"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[7px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: '#EAB30818', color: '#EAB308' }}>할 일</span>
+                    <span className="text-[7px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: '#7C3AED18', color: '#7C3AED' }}>업무</span>
+                  </div>
+                  <span className="text-[7px] text-gray-400">방금</span>
+                </div>
+                <p className="text-[10px] text-gray-800 font-medium">금요일 팀 미팅 자료 준비</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {[
             { cats: ['아이디어', '할 일'], catColors: ['#EAB308', '#3B82F6'], ctx: '개인', time: '3시간 전', text: '새로운 독서 앱 아이디어 정리', tags: ['#앱', '#기획'], pinned: true, hasCheck: true },
             { cats: ['지식'], catColors: ['#A855F7'], ctx: '개인', time: '2시간 전', text: 'React 상태 관리 패턴 정리', tags: ['#React', '#개발'], pinned: false, hasCheck: false },
@@ -381,10 +704,10 @@ export function QuickCaptureDetails({ platform }: { platform: Platform }) {
   );
 }
 
-export function QuickCaptureMockup({ platform }: { platform: Platform }) {
+export function QuickCaptureMockup({ platform, step = -1, subPhase = 'action' }: { platform: Platform; step?: number; subPhase?: 'action' | 'reaction' }) {
   return (
     <MockupFrame platform={platform}>
-      {platform === 'ios' ? <IOSContent /> : <WebContent />}
+      {platform === 'ios' ? <IOSContent step={step} subPhase={subPhase} /> : <WebContent step={step} subPhase={subPhase} />}
     </MockupFrame>
   );
 }

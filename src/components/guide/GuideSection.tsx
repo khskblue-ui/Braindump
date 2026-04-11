@@ -9,9 +9,10 @@ interface GuideSectionProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  layout?: 'default' | 'split';
 }
 
-export function GuideSection({ id, number, color, title, description, children }: GuideSectionProps) {
+export function GuideSection({ id, number, color, title, description, children, layout = 'default' }: GuideSectionProps) {
   return (
     <section id={id} className="py-16 sm:py-20 scroll-mt-32">
       <div className="max-w-4xl mx-auto px-6">
@@ -30,7 +31,13 @@ export function GuideSection({ id, number, color, title, description, children }
           </div>
         </ScrollReveal>
         <ScrollReveal delay={150}>
-          {children}
+          {layout === 'split' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-start">
+              {children}
+            </div>
+          ) : (
+            children
+          )}
         </ScrollReveal>
       </div>
     </section>

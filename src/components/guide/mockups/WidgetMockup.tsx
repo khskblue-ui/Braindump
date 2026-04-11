@@ -1,67 +1,83 @@
 'use client';
 
+import {
+  motion,
+  spring, ease,
+  fadeUp, fadeIn, slideInLeft, slideInRight,
+  staggerContainer, stepState,
+} from '../motion-helpers';
+
 type Platform = 'ios' | 'web';
 
-function WidgetCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function WidgetCard({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: object }) {
   return (
-    <div className={`bg-white rounded-2xl p-3 shadow-sm border border-gray-100 ${className}`}>
+    <div className={`bg-white rounded-2xl p-3 shadow-sm border border-gray-100 ${className}`} style={style}>
       {children}
     </div>
   );
 }
 
-function IOSWidgets() {
+function IOSWidgets({ step = -1 }: { step?: number }) {
   return (
     <div className="space-y-6">
       {/* Widget grid - matching actual screenshots */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto">
         {/* 다음 일정 widget */}
-        <WidgetCard>
-          <div className="flex items-center gap-1.5 mb-2">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-            <span className="text-[10px] font-semibold text-gray-500">다음 일정</span>
-          </div>
-          <p className="text-sm font-bold text-gray-900 leading-tight">6월 15일 (월) 프로젝트 발표</p>
-          <p className="text-xs text-orange-500 font-medium mt-0.5">2개월 4일</p>
-          <div className="border-t border-gray-100 mt-2.5 pt-2.5 space-y-2">
-            {['디자인 시안 피드백 전달', '마트 장보기', '주간 보고서 작성'].map((text, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full border border-gray-300 shrink-0" />
-                <span className="text-xs text-gray-700">{text}</span>
-              </div>
-            ))}
-          </div>
-        </WidgetCard>
+        <motion.div variants={slideInLeft} animate={stepState(step, 0)} transition={{ ...spring, delay: 0 }}>
+          <WidgetCard>
+            <div className="flex items-center gap-1.5 mb-2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+              <span className="text-[10px] font-semibold text-gray-500">다음 일정</span>
+            </div>
+            <p className="text-sm font-bold text-gray-900 leading-tight">6월 15일 (월) 프로젝트 발표</p>
+            <p className="text-xs text-orange-500 font-medium mt-0.5">2개월 4일</p>
+            <div className="border-t border-gray-100 mt-2.5 pt-2.5 space-y-2">
+              {['디자인 시안 피드백 전달', '마트 장보기', '주간 보고서 작성'].map((text, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full border border-gray-300 shrink-0" />
+                  <span className="text-xs text-gray-700">{text}</span>
+                </div>
+              ))}
+            </div>
+          </WidgetCard>
+        </motion.div>
 
         {/* 고정된 항목 widget */}
-        <WidgetCard>
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#EF4444" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 17v5M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7" />
-              <path d="M5 11h14l-1.5 6H6.5L5 11z" />
-            </svg>
-            <span className="text-[10px] font-semibold text-gray-500">고정된 항목</span>
-          </div>
-          <div className="space-y-2.5">
-            {[
-              { text: '앱 다크모드 디자인 컨셉 정리', cat: '아이디어', color: '#EAB308' },
-              { text: '사이드 프로젝트 기술 스택 비교 분석', cat: '아이디어', color: '#EAB308' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-0.5 h-7 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-xs text-gray-700 flex-1 truncate">{item.text}</span>
-                <span className="text-[10px] text-gray-400 shrink-0">{item.cat}</span>
-              </div>
-            ))}
-          </div>
-        </WidgetCard>
+        <motion.div variants={slideInRight} animate={stepState(step, 0)} transition={{ ...spring, delay: 0.2 }}>
+          <WidgetCard>
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#EF4444" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 17v5M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7" />
+                <path d="M5 11h14l-1.5 6H6.5L5 11z" />
+              </svg>
+              <span className="text-[10px] font-semibold text-gray-500">고정된 항목</span>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                { text: '앱 다크모드 디자인 컨셉 정리', cat: '아이디어', color: '#EAB308' },
+                { text: '사이드 프로젝트 기술 스택 비교 분석', cat: '아이디어', color: '#EAB308' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-0.5 h-7 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-xs text-gray-700 flex-1 truncate">{item.text}</span>
+                  <span className="text-[10px] text-gray-400 shrink-0">{item.cat}</span>
+                </div>
+              ))}
+            </div>
+          </WidgetCard>
+        </motion.div>
       </div>
 
       {/* 빠른 기록 widget (dark, full width) */}
-      <div className="max-w-lg mx-auto bg-gray-900 rounded-2xl p-4 flex items-center gap-4">
+      <motion.div
+        className="max-w-lg mx-auto bg-gray-900 rounded-2xl p-4 flex items-center gap-4"
+        variants={fadeUp}
+        animate={stepState(step, 1)}
+        transition={{ ...spring }}
+      >
         <div className="flex flex-col items-center gap-1.5 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
             <span className="text-sm font-bold text-white">B</span>
@@ -85,15 +101,24 @@ function IOSWidgets() {
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Dynamic Island */}
-      <div className="max-w-lg mx-auto">
+      <motion.div
+        className="max-w-lg mx-auto"
+        variants={fadeIn}
+        animate={stepState(step, 2)}
+        transition={{ ...ease }}
+      >
         <h4 className="text-sm font-semibold text-gray-900 mb-3">다이나믹 아일랜드 · 잠금 화면</h4>
         <div className="bg-gray-950 rounded-[2rem] p-4 pb-5 space-y-3">
           {/* Dynamic Island expanded */}
           <div className="mx-auto max-w-[280px]">
-            <div className="bg-gray-900 rounded-[1.5rem] px-4 py-3">
+            <motion.div
+              className="bg-gray-900 rounded-[1.5rem] px-4 py-3"
+              animate={{ boxShadow: step === 2 ? '0 0 20px rgba(59,130,246,0.15)' : '0 0 0px rgba(0,0,0,0)' }}
+              transition={{ ...ease }}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -113,7 +138,7 @@ function IOSWidgets() {
                 <span className="text-[7px] font-medium text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded">업무</span>
                 <span className="text-[7px] text-gray-500">할 일 3개 · 다음 일정 30분 후</span>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Lock screen widget */}
@@ -133,24 +158,28 @@ function IOSWidgets() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
-function WebWidgets() {
+function WebWidgets({ step = -1 }: { step?: number }) {
   return (
     <div className="space-y-5">
       <div>
         <h4 className="text-sm font-semibold text-gray-900 mb-3">iOS 위젯 종류</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+          variants={staggerContainer(0.15)}
+          animate={stepState(step, 0)}
+        >
           {[
             { title: '다음 일정', desc: '다가오는 일정과 미완료 할 일을 한눈에 보여줍니다. 마감 카운트다운이 표시됩니다.', iconPath: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', color: '#F97316' },
             { title: '고정된 항목', desc: '핀 고정한 중요 항목을 카테고리 색상과 함께 표시합니다.', iconPath: 'M12 17v5M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7M5 11h14l-1.5 6H6.5L5 11z', color: '#EF4444' },
             { title: '할 일 카운트', desc: '오늘 남은 할 일 개수와 완료 진행률을 원형 프로그레스로 보여줍니다.', iconPath: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', color: '#3B82F6' },
             { title: '빠른 기록', desc: '텍스트, 음성, 사진 버튼을 탭해서 바로 기록을 시작합니다.', iconPath: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', color: '#EAB308' },
           ].map((w) => (
-            <div key={w.title} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+            <motion.div key={w.title} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm" variants={fadeUp}>
               <div className="flex items-center gap-2 mb-1.5">
                 <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ backgroundColor: w.color + '1A' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={w.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -160,31 +189,38 @@ function WebWidgets() {
                 <span className="text-sm font-semibold" style={{ color: w.color }}>{w.title}</span>
               </div>
               <p className="text-xs text-gray-500 leading-relaxed">{w.desc}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
 
-      <div>
+      <motion.div variants={fadeUp} animate={stepState(step, 1)} transition={{ ...ease }}>
         <h4 className="text-sm font-semibold text-gray-900 mb-2">개인/업무 위젯 분리</h4>
         <p className="text-xs text-gray-500 leading-relaxed">
           모든 위젯은 개인/업무 버전을 따로 추가할 수 있습니다. 개인 할 일 위젯과 업무 할 일 위젯을 홈 화면에 나란히 배치하면, 맥락별로 오늘의 할 일을 한눈에 파악할 수 있습니다.
         </p>
-      </div>
+      </motion.div>
 
-      <div>
+      <motion.div variants={fadeUp} animate={stepState(step, 2)} transition={{ ...ease }}>
         <h4 className="text-sm font-semibold text-gray-900 mb-2">다이나믹 아일랜드</h4>
         <p className="text-xs text-gray-500 leading-relaxed">
           잠금 화면과 다이나믹 아일랜드에서 남은 할 일 개수와 다음 일정까지의 시간을 실시간으로 확인할 수 있습니다. 다음 일정이 1시간 이내이면 카운트다운 타이머가 표시됩니다.
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
-export function WidgetMockup({ platform }: { platform: Platform }) {
+export function WidgetMockup({ platform, step = -1 }: { platform: Platform; step?: number }) {
   if (platform === 'ios') {
-    return <IOSWidgets />;
+    return <IOSWidgets step={step} />;
   }
-  return <WebWidgets />;
+  return <WebWidgets step={step} />;
 }
+
+export const WIDGET_CAPTIONS = [
+  { text: '홈 화면에서 일정과 할 일을 바로 확인' },
+  { text: '위젯에서 바로 기록 시작' },
+  { text: '다이나믹 아일랜드에서 실시간 확인' },
+];
+export const WIDGET_DURATIONS = [2000, 2000, 2000];

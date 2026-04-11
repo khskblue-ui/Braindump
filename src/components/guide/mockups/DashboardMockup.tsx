@@ -1,10 +1,34 @@
 'use client';
 
 import { MockupFrame } from '../MockupFrame';
+import { TapIndicator } from '../TapIndicator';
+import {
+  motion,
+  AnimatePresence,
+  spring, ease, fadeUp,
+  staggerContainer, stepState,
+} from '../motion-helpers';
 
 type Platform = 'ios' | 'web';
+type SubPhase = 'action' | 'reaction';
 
-function IOSContent() {
+// Shared data
+const overdueItems = [
+  { text: '분기 보고서 제출', color: '#3B82F6', date: '어제' },
+  { text: '프로젝트 발표 자료', color: '#F97316', date: '3일 전' },
+];
+
+const recentItems = [
+  { text: '앱 다크모드 디자인 아이디어', color: '#EAB308', pinned: true },
+  { text: 'JavaScript 클로저 개념 정리', color: '#A855F7', pinned: false },
+  { text: '주간 회의 안건 정리', color: '#22C55E', pinned: false },
+];
+
+function IOSContent({ step = -1, subPhase = 'action' as SubPhase }: { step?: number; subPhase?: SubPhase }) {
+  const isExpanded = step >= 0;
+  const showPinTap = step === 2 && subPhase === 'action';
+  const pinActivated = step === 2 && subPhase === 'reaction';
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-blue-50/60 via-purple-50/40 to-pink-50/60">
       {/* Header */}
@@ -46,10 +70,10 @@ function IOSContent() {
         ))}
       </div>
 
-      {/* Dashboard - expanded */}
+      {/* Dashboard */}
       <div className="mx-3 mt-1 rounded-lg border border-gray-200/60 bg-white/50 shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-2.5 py-2 border-b border-gray-100">
+        {/* Dashboard Header - tappable */}
+        <div className="relative flex items-center justify-between px-2.5 py-2 border-b border-gray-100">
           <div className="flex items-center gap-1.5">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -57,82 +81,126 @@ function IOSContent() {
             </svg>
             <span className="text-[9px] font-semibold text-blue-600">오늘의 대시보드</span>
           </div>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <motion.svg
+            width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            animate={{ rotate: isExpanded ? 0 : -90 }}
+            transition={{ duration: 0.3 }}
+          >
             <path d="m6 9 6 6 6-6" />
-          </svg>
+          </motion.svg>
+          <TapIndicator active={step === 0 && subPhase === 'action'} x="50%" y="50%" size={30} color="#3B82F6" />
         </div>
 
-        {/* Overdue section */}
-        <div className="px-2.5 py-1.5 border-b border-gray-100/50">
-          <div className="flex items-center gap-1 mb-1.5">
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <path d="M12 9v4M12 17h.01" />
-            </svg>
-            <span className="text-[7px] font-semibold text-orange-600">지난 항목</span>
-            <span className="text-[6px] text-gray-400 bg-gray-100 px-1 rounded-full">2</span>
-          </div>
-          {[
-            { text: '분기 보고서 제출', color: '#3B82F6', date: '어제' },
-            { text: '프로젝트 발표 자료', color: '#F97316', date: '3일 전' },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-1.5 py-1">
-              <div className="w-0.5 h-4 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-[8px] text-gray-700 flex-1 truncate">{item.text}</span>
-              <span className="text-[6px] text-red-400">{item.date}</span>
+        {/* Expandable content */}
+        <motion.div
+          animate={{ height: isExpanded ? 'auto' : 0 }}
+          initial={{ height: 0 }}
+          transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+          style={{ overflow: 'hidden' }}
+        >
+          {/* Overdue section */}
+          <motion.div
+            className="px-2.5 py-1.5 border-b border-gray-100/50"
+            animate={{ opacity: step >= 0 ? 1 : 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex items-center gap-1 mb-1.5">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <path d="M12 9v4M12 17h.01" />
+              </svg>
+              <span className="text-[7px] font-semibold text-orange-600">지난 항목</span>
+              <span className="text-[6px] text-gray-400 bg-gray-100 px-1 rounded-full">2</span>
             </div>
-          ))}
-        </div>
+            <motion.div variants={staggerContainer(0.1)} animate={stepState(step, 0)}>
+              {overdueItems.map((item, i) => (
+                <motion.div key={i} className="flex items-center gap-1.5 py-1" variants={fadeUp} transition={spring}>
+                  <div className="w-0.5 h-4 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-[8px] text-gray-700 flex-1 truncate">{item.text}</span>
+                  <span className="text-[6px] text-red-400">{item.date}</span>
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
 
-        {/* Today section */}
-        <div className="px-2.5 py-1.5 border-b border-gray-100/50">
-          <div className="flex items-center gap-1 mb-1.5">
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-            <span className="text-[7px] font-semibold text-blue-600">오늘 일정</span>
-            <span className="text-[6px] text-gray-400 bg-gray-100 px-1 rounded-full">1</span>
-          </div>
-          <div className="flex items-center gap-1.5 py-1">
-            <div className="w-0.5 h-4 rounded-full bg-orange-400" />
-            <span className="text-[8px] text-gray-700 flex-1">14:00 팀 미팅</span>
-            <span className="text-[6px] text-gray-400">오후 2시</span>
-          </div>
-        </div>
-
-        {/* Recent section */}
-        <div className="px-2.5 py-1.5">
-          <div className="flex items-center gap-1 mb-1.5">
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4l2 2" />
-            </svg>
-            <span className="text-[7px] font-semibold text-green-600">최근 추가</span>
-            <span className="text-[6px] text-gray-400 bg-gray-100 px-1 rounded-full">3</span>
-          </div>
-          {[
-            { text: '앱 다크모드 디자인 아이디어', color: '#EAB308', pinned: true },
-            { text: 'JavaScript 클로저 개념 정리', color: '#A855F7', pinned: false },
-            { text: '주간 회의 안건 정리', color: '#22C55E', pinned: false },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-1.5 py-1">
-              <div className="w-0.5 h-4 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-[8px] text-gray-700 flex-1 truncate">{item.text}</span>
-              {item.pinned && (
-                <svg width="7" height="7" viewBox="0 0 24 24" fill="#60A5FA" stroke="#60A5FA" strokeWidth="1.5">
-                  <path d="M12 17v5M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7" />
-                  <path d="M5 11h14l-1.5 6H6.5L5 11z" />
-                </svg>
-              )}
+          {/* Today section */}
+          <motion.div
+            className="px-2.5 py-1.5 border-b border-gray-100/50"
+            animate={{ opacity: step >= 1 ? 1 : 0, y: step >= 1 ? 0 : 10 }}
+            transition={{ ...spring, delay: 0.1 }}
+          >
+            <div className="flex items-center gap-1 mb-1.5">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+              <span className="text-[7px] font-semibold text-blue-600">오늘 일정</span>
+              <span className="text-[6px] text-gray-400 bg-gray-100 px-1 rounded-full">1</span>
             </div>
-          ))}
-        </div>
+            <motion.div
+              className="flex items-center gap-1.5 py-1"
+              animate={{ opacity: step >= 1 ? 1 : 0 }}
+              transition={{ ...spring, delay: 0.2 }}
+            >
+              <div className="w-0.5 h-4 rounded-full bg-orange-400" />
+              <span className="text-[8px] text-gray-700 flex-1">14:00 팀 미팅</span>
+              <span className="text-[6px] text-gray-400">오후 2시</span>
+            </motion.div>
+          </motion.div>
+
+          {/* Recent section */}
+          <motion.div
+            className="px-2.5 py-1.5"
+            animate={{ opacity: step >= 2 ? 1 : 0, y: step >= 2 ? 0 : 10 }}
+            transition={{ ...spring, delay: 0.1 }}
+          >
+            <div className="flex items-center gap-1 mb-1.5">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4l2 2" />
+              </svg>
+              <span className="text-[7px] font-semibold text-green-600">최근 추가</span>
+              <span className="text-[6px] text-gray-400 bg-gray-100 px-1 rounded-full">3</span>
+            </div>
+            <motion.div variants={staggerContainer(0.1)} animate={stepState(step, 2)}>
+              {recentItems.map((item, i) => (
+                <motion.div key={i} className="relative flex items-center gap-1.5 py-1" variants={fadeUp} transition={spring}>
+                  <div className="w-0.5 h-4 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-[8px] text-gray-700 flex-1 truncate">{item.text}</span>
+                  {item.pinned && (
+                    <div className="relative">
+                      <motion.svg
+                        width="7"
+                        height="7"
+                        viewBox="0 0 24 24"
+                        animate={{
+                          fill: pinActivated ? '#3B82F6' : '#D1D5DB',
+                          stroke: pinActivated ? '#3B82F6' : '#D1D5DB',
+                          scale: pinActivated ? [1, 1.5, 1.15] : 1,
+                        }}
+                        transition={pinActivated ? { type: 'tween', duration: 0.4 } : { duration: 0.3 }}
+                        strokeWidth="1.5"
+                      >
+                        <path d="M12 17v5M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7" />
+                        <path d="M5 11h14l-1.5 6H6.5L5 11z" />
+                      </motion.svg>
+                      <TapIndicator active={showPinTap} x="50%" y="50%" size={18} color="#3B82F6" />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
+        </motion.div>
       </div>
 
       {/* Entry card preview */}
       <div className="px-3 mt-2 space-y-1.5 flex-1 overflow-hidden">
-        <div className="bg-white rounded-xl p-2.5 border border-gray-200/60 shadow-sm">
+        <motion.div
+          className="bg-white rounded-xl p-2.5 border border-gray-200/60 shadow-sm"
+          animate={{ opacity: step >= 0 ? 1 : 0.4 }}
+          transition={{ duration: 0.4 }}
+        >
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1">
               <span className="text-[6.5px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: '#EAB30818', color: '#EAB308' }}>아이디어</span>
@@ -152,7 +220,7 @@ function IOSContent() {
             <span className="text-[6.5px] text-gray-500 bg-gray-100 px-1 py-0.5 rounded">#디자인</span>
             <span className="text-[6.5px] text-gray-500 bg-gray-100 px-1 py-0.5 rounded">#UI</span>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Bottom tab bar */}
@@ -175,12 +243,17 @@ function IOSContent() {
   );
 }
 
-function WebContent() {
+function WebContent({ step = -1, subPhase = 'action' as SubPhase }: { step?: number; subPhase?: SubPhase }) {
+  const isExpanded = step >= 0;
+  const showPinTap = step === 2 && subPhase === 'action';
+  const pinActivated = step === 2 && subPhase === 'reaction';
+
   return (
     <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50/40 via-purple-50/30 to-pink-50/40 min-h-full">
       {/* Dashboard card */}
       <div className="rounded-xl border border-gray-200/60 bg-white/60 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        {/* Header - tappable */}
+        <div className="relative flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -188,85 +261,137 @@ function WebContent() {
             </svg>
             <span className="text-xs font-semibold text-blue-600">오늘의 대시보드</span>
           </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <motion.svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            animate={{ rotate: isExpanded ? 0 : -90 }}
+            transition={{ duration: 0.3 }}
+          >
             <path d="m6 9 6 6 6-6" />
-          </svg>
+          </motion.svg>
+          <TapIndicator active={step === 0 && subPhase === 'action'} x="50%" y="50%" size={36} color="#3B82F6" />
         </div>
 
-        {/* Sections */}
-        <div className="divide-y divide-gray-100/50">
-          {/* Overdue */}
-          <div className="px-4 py-2.5">
-            <div className="flex items-center gap-1.5 mb-2">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <path d="M12 9v4M12 17h.01" />
-              </svg>
-              <span className="text-[10px] font-semibold text-orange-600">지난 항목</span>
-              <span className="text-[8px] text-gray-400 bg-gray-100 px-1.5 rounded-full">2</span>
-            </div>
-            {[
-              { text: '분기 보고서 제출', color: '#3B82F6', date: '어제' },
-              { text: '프로젝트 발표 자료', color: '#F97316', date: '3일 전' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-2 py-1">
-                <div className="w-0.5 h-5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-[10px] text-gray-700 flex-1">{item.text}</span>
-                <span className="text-[8px] text-red-400">{item.date}</span>
+        {/* Expandable content */}
+        <motion.div
+          animate={{ height: isExpanded ? 'auto' : 0 }}
+          initial={{ height: 0 }}
+          transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+          style={{ overflow: 'hidden' }}
+        >
+          <div className="divide-y divide-gray-100/50">
+            {/* Overdue */}
+            <motion.div
+              className="px-4 py-2.5"
+              animate={{ opacity: step >= 0 ? 1 : 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <path d="M12 9v4M12 17h.01" />
+                </svg>
+                <span className="text-[10px] font-semibold text-orange-600">지난 항목</span>
+                <span className="text-[8px] text-gray-400 bg-gray-100 px-1.5 rounded-full">2</span>
               </div>
-            ))}
-          </div>
+              <motion.div variants={staggerContainer(0.1)} animate={stepState(step, 0)}>
+                {overdueItems.map((item, i) => (
+                  <motion.div key={i} className="flex items-center gap-2 py-1" variants={fadeUp} transition={spring}>
+                    <div className="w-0.5 h-5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-[10px] text-gray-700 flex-1">{item.text}</span>
+                    <span className="text-[8px] text-red-400">{item.date}</span>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
 
-          {/* Today */}
-          <div className="px-4 py-2.5">
-            <div className="flex items-center gap-1.5 mb-2">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-              <span className="text-[10px] font-semibold text-blue-600">오늘 일정</span>
-            </div>
-            <div className="flex items-center gap-2 py-1">
-              <div className="w-0.5 h-5 rounded-full bg-orange-400" />
-              <span className="text-[10px] text-gray-700 flex-1">14:00 팀 미팅</span>
-              <span className="text-[8px] text-gray-400">오후 2시</span>
-            </div>
-          </div>
-
-          {/* Recent */}
-          <div className="px-4 py-2.5">
-            <div className="flex items-center gap-1.5 mb-2">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v4l2 2" />
-              </svg>
-              <span className="text-[10px] font-semibold text-green-600">최근 추가</span>
-              <span className="text-[8px] text-gray-400 bg-gray-100 px-1.5 rounded-full">3</span>
-            </div>
-            {[
-              { text: '앱 다크모드 디자인 아이디어', color: '#EAB308' },
-              { text: 'JavaScript 클로저 개념 정리', color: '#A855F7' },
-              { text: '주간 회의 안건 정리', color: '#22C55E' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-2 py-1">
-                <div className="w-0.5 h-5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-[10px] text-gray-700 flex-1">{item.text}</span>
+            {/* Today */}
+            <motion.div
+              className="px-4 py-2.5"
+              animate={{ opacity: step >= 1 ? 1 : 0, y: step >= 1 ? 0 : 10 }}
+              transition={{ ...spring, delay: 0.1 }}
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+                <span className="text-[10px] font-semibold text-blue-600">오늘 일정</span>
               </div>
-            ))}
+              <motion.div
+                className="flex items-center gap-2 py-1"
+                animate={{ opacity: step >= 1 ? 1 : 0 }}
+                transition={{ ...spring, delay: 0.2 }}
+              >
+                <div className="w-0.5 h-5 rounded-full bg-orange-400" />
+                <span className="text-[10px] text-gray-700 flex-1">14:00 팀 미팅</span>
+                <span className="text-[8px] text-gray-400">오후 2시</span>
+              </motion.div>
+            </motion.div>
+
+            {/* Recent */}
+            <motion.div
+              className="px-4 py-2.5"
+              animate={{ opacity: step >= 2 ? 1 : 0, y: step >= 2 ? 0 : 10 }}
+              transition={{ ...spring, delay: 0.1 }}
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v4l2 2" />
+                </svg>
+                <span className="text-[10px] font-semibold text-green-600">최근 추가</span>
+                <span className="text-[8px] text-gray-400 bg-gray-100 px-1.5 rounded-full">3</span>
+              </div>
+              <motion.div variants={staggerContainer(0.1)} animate={stepState(step, 2)}>
+                {recentItems.map((item, i) => (
+                  <motion.div key={i} className="relative flex items-center gap-2 py-1" variants={fadeUp} transition={spring}>
+                    <div className="w-0.5 h-5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-[10px] text-gray-700 flex-1">{item.text}</span>
+                    {item.pinned && (
+                      <div className="relative">
+                        <motion.svg
+                          width="9"
+                          height="9"
+                          viewBox="0 0 24 24"
+                          animate={{
+                            fill: pinActivated ? '#3B82F6' : '#D1D5DB',
+                            stroke: pinActivated ? '#3B82F6' : '#D1D5DB',
+                            scale: pinActivated ? [1, 1.5, 1.15] : 1,
+                          }}
+                          transition={pinActivated ? { type: 'tween', duration: 0.4 } : { duration: 0.3 }}
+                          strokeWidth="1.5"
+                        >
+                          <path d="M12 17v5M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7" />
+                          <path d="M5 11h14l-1.5 6H6.5L5 11z" />
+                        </motion.svg>
+                        <TapIndicator active={showPinTap} x="50%" y="50%" size={22} color="#3B82F6" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
 }
 
-export function DashboardMockup({ platform }: { platform: Platform }) {
+export function DashboardMockup({ platform, step, subPhase = 'action' }: { platform: Platform; step?: number; subPhase?: SubPhase }) {
   return (
     <MockupFrame platform={platform}>
-      {platform === 'ios' ? <IOSContent /> : <WebContent />}
+      {platform === 'ios' ? <IOSContent step={step} subPhase={subPhase} /> : <WebContent step={step} subPhase={subPhase} />}
     </MockupFrame>
   );
 }
+
+export const DASHBOARD_CAPTIONS = [
+  { text: '대시보드를 탭해 오늘의 현황 펼치기' },
+  { text: '오늘 일정과 마감을 한눈에 확인' },
+  { text: '중요 항목에 핀을 고정' },
+];
+export const DASHBOARD_DURATIONS = [2500, 2000, 2500];
 
 export function DashboardDetails() {
   return (
