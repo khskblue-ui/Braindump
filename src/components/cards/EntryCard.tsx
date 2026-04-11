@@ -5,7 +5,7 @@ import { Entry, CATEGORY_MAP, hasCategory, primaryCategory } from '@/types';
 import { useEntryStore } from '@/stores/entry-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Square, Clock, FileText, Pin, ChevronUp, ChevronDown, User, Building2 } from 'lucide-react';
+import { Check, Square, Clock, FileText, Pin, ChevronUp, ChevronDown, User, Building2, Circle } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -63,27 +63,33 @@ export const EntryCard = memo(function EntryCard({ entry, onClick, sortMode, onM
                     </span>
                   );
                 })}
-                {entry.context && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateEntry(entry.id, { context: entry.context === 'personal' ? 'work' : 'personal' });
-                    }}
-                    className="text-xs font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
-                    style={{
-                      backgroundColor: entry.context === 'personal' ? '#3B82F618' : '#7C3AED18',
-                      color: entry.context === 'personal' ? '#3B82F6' : '#7C3AED',
-                    }}
-                  >
-                    {entry.context === 'personal' ? (
-                      <User className="h-3 w-3" strokeWidth={2} />
-                    ) : (
-                      <Building2 className="h-3 w-3" strokeWidth={2} />
-                    )}
-                    {entry.context === 'personal' ? '개인' : '회사'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = entry.context === null || entry.context === undefined
+                      ? 'work'
+                      : entry.context === 'work'
+                        ? 'personal'
+                        : null;
+                    updateEntry(entry.id, { context: next });
+                  }}
+                  className="text-xs font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
+                  style={{
+                    backgroundColor: entry.context === 'personal' ? '#3B82F618' : entry.context === 'work' ? '#7C3AED18' : undefined,
+                    color: entry.context === 'personal' ? '#3B82F6' : entry.context === 'work' ? '#7C3AED' : 'var(--muted-foreground)',
+                    border: !entry.context ? '1px dashed var(--border)' : undefined,
+                  }}
+                >
+                  {entry.context === 'personal' ? (
+                    <User className="h-3 w-3" strokeWidth={2} />
+                  ) : entry.context === 'work' ? (
+                    <Building2 className="h-3 w-3" strokeWidth={2} />
+                  ) : (
+                    <Circle className="h-3 w-3" strokeWidth={1.5} />
+                  )}
+                  {entry.context === 'personal' ? '개인' : entry.context === 'work' ? '업무' : '미분류'}
+                </button>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {sortMode ? (

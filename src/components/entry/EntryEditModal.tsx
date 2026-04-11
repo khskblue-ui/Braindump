@@ -256,7 +256,7 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
               {([
                 { label: '미지정', value: null, icon: null, color: undefined },
                 { label: '개인', value: 'personal' as EntryContext, icon: User, color: '#3B82F6' },
-                { label: '회사', value: 'work' as EntryContext, icon: Building2, color: '#7C3AED' },
+                { label: '업무', value: 'work' as EntryContext, icon: Building2, color: '#7C3AED' },
               ] as const).map((item) => {
                 const isSelected = context === item.value;
                 const Icon = item.icon;
