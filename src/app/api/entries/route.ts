@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
   const context = searchParams.get('context');
   if (context && (context === 'personal' || context === 'work')) {
-    dbQuery = dbQuery.eq('context', context);
+    dbQuery = dbQuery.or(`context.eq.${context},context.is.null`);
   }
 
   if (query) {
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
       textQuery.contains('categories', [category]);
     }
     if (context && (context === 'personal' || context === 'work')) {
-      textQuery.eq('context', context);
+      textQuery.or(`context.eq.${context},context.is.null`);
     }
 
     const tagSearchQuery = supabase
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       tagSearchQuery.contains('categories', [category]);
     }
     if (context && (context === 'personal' || context === 'work')) {
-      tagSearchQuery.eq('context', context);
+      tagSearchQuery.or(`context.eq.${context},context.is.null`);
     }
 
     const [textResult, tagResult] = await Promise.all([textQuery, tagSearchQuery]);
