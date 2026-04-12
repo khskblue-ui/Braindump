@@ -10,10 +10,10 @@ export const CATEGORY_INFO = [
 ];
 
 export const FLOW_STEPS = [
-  { step: '1단계', question: '시간 정보가 있는가?', result: '일정 (schedule)', color: '#F97316' },
+  { step: '1단계', question: '미래 시간 정보가 있는가?', result: '일정 (schedule)', color: '#F97316' },
   { step: '2단계', question: '"했다/안했다"로 완결 가능한가?', result: '할 일 (task)', color: '#3B82F6' },
   { step: '3단계', question: '아직 열려있는 생각인가?', result: '아이디어 (idea)', color: '#EAB308' },
-  { step: '4단계', question: '참고용 기록인가?', result: '메모/지식 (memo/knowledge)', color: '#22C55E' },
+  { step: '4단계', question: '참고용 기록 또는 학습 정보인가?', result: '메모/지식 (memo/knowledge)', color: '#22C55E' },
   { step: '5단계', question: '위 어디에도 해당하지 않음', result: '미분류 (inbox)', color: '#9CA3AF' },
 ];
 
