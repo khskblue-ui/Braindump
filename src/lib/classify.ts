@@ -36,7 +36,7 @@ function buildCalendarReference(): string {
     lines.join('\n');
 }
 
-function buildSystemPrompt(userPatterns?: string, userRules?: string): string {
+function buildSystemPrompt(userPatterns?: string, userRules?: string, existingTopics?: string): string {
   // Use Korean timezone (KST, UTC+9) for correct date/day-of-week
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -137,13 +137,13 @@ ${calendar}
 {
   "categories": ["primary", "secondary"],
   "tags": ["태그1", "태그2"],
-  "topic": "주제명 (knowledge 포함 시만, 그 외 null)",
+  "topic": "주제명 (knowledge 포함 시만, 그 외 null).${existingTopics ? ' 아래 기존 토픽 중 적합한 것이 있으면 반드시 해당 이름을 그대로 사용하세요. 완전히 새로운 주제일 때만 새 토픽명을 생성하세요.' : ''}",
   "extracted_text": "이미지에서 추출한 텍스트 (이미지인 경우만, 그 외 null)",
   "summary": "간결한 명사구 제목",
   "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null). 반드시 한국 시간(KST, +09:00) 기준. 예: 2026-04-10T15:00:00+09:00",
   "context": "personal 또는 work (모든 카테고리에 적용). 업무/회사/직장 관련이면 work, 개인 생활/취미/건강이면 personal. 맥락이 불분명하면 null. 세부 기준: 회사 동료와의 비업무 약속(점심/회식) → personal, 재택근무 중 개인 용무 → personal, 업무에서 쓸 자기개발/공부 → work, 겸용(업무+개인) → null",
   "related_topics": ["관련 주제"]
-}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하고, context가 지정된 경우 반드시 해당 값으로 설정하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n` : ''}`;
+}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하고, context가 지정된 경우 반드시 해당 값으로 설정하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n` : ''}${existingTopics ? `\n\n## 기존 토픽 목록 (knowledge 분류 시 기존 토픽명을 우선 재사용하세요)\n${existingTopics}\n` : ''}`;
 }
 
 const classifySchema = z.object({
@@ -179,7 +179,7 @@ export function smartTruncate(text: string, maxLen: number): string {
 
 export async function classifyText(
   text: string,
-  options?: { maxTokens?: number; userPatterns?: string; userRules?: string; inputType?: string; textLength?: number }
+  options?: { maxTokens?: number; userPatterns?: string; userRules?: string; existingTopics?: string; inputType?: string; textLength?: number }
 ): Promise<ClassifyResult> {
   const meta = options?.inputType
     ? `[입력 유형: ${options.inputType}${options.textLength ? `, 원본 ${options.textLength.toLocaleString()}자` : ''}]\n\n`
@@ -187,7 +187,7 @@ export async function classifyText(
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: options?.maxTokens ?? 800,
-    system: buildSystemPrompt(options?.userPatterns, options?.userRules),
+    system: buildSystemPrompt(options?.userPatterns, options?.userRules, options?.existingTopics),
     messages: [{ role: 'user', content: meta + text }],
   });
 
@@ -198,7 +198,7 @@ export async function classifyImage(
   imageBase64: string,
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp',
   text?: string,
-  options?: { userPatterns?: string; userRules?: string }
+  options?: { userPatterns?: string; userRules?: string; existingTopics?: string }
 ): Promise<ClassifyResult> {
   const content: Anthropic.Messages.ContentBlockParam[] = [
     {
@@ -216,7 +216,7 @@ export async function classifyImage(
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 800,
-    system: buildSystemPrompt(options?.userPatterns, options?.userRules),
+    system: buildSystemPrompt(options?.userPatterns, options?.userRules, options?.existingTopics),
     messages: [{ role: 'user', content }],
   });
 

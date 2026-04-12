@@ -11,6 +11,8 @@ import type { TopicInfo } from '@/types';
 
 // Simple module-level cache to avoid refetching on every tab switch
 let cachedTopics: TopicInfo[] | null = null;
+let lastMergeCheck: number = 0;
+const MERGE_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function KnowledgePage() {
   const [topics, setTopics] = useState<TopicInfo[]>(cachedTopics || []);
@@ -45,6 +47,28 @@ export default function KnowledgePage() {
         .finally(() => setLoading(false));
     }
   }, []);
+
+  useEffect(() => {
+    // Auto-merge similar topics in background (max once per 24h)
+    if (topics.length >= 2 && Date.now() - lastMergeCheck > MERGE_CHECK_INTERVAL) {
+      lastMergeCheck = Date.now();
+      fetch('/api/topics/merge-similar', { method: 'POST' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.merged?.length > 0) {
+            // Refresh topics after merge
+            fetch('/api/topics')
+              .then((res) => res.json())
+              .then((d) => {
+                const fresh = d.topics || [];
+                cachedTopics = fresh;
+                setTopics(fresh);
+              });
+          }
+        })
+        .catch(() => {}); // Silent fail — not critical
+    }
+  }, [topics.length]);
 
   if (loading) {
     return (

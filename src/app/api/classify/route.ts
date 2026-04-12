@@ -27,6 +27,31 @@ async function fetchUserRules(supabase: SupabaseClient, userId: string): Promise
   }).join('\n');
 }
 
+// Fetch user's existing knowledge topics for topic matching
+async function fetchExistingTopics(supabase: SupabaseClient, userId: string): Promise<string | undefined> {
+  const { data: entries } = await supabase
+    .from('entries')
+    .select('topic')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .contains('categories', ['knowledge'])
+    .not('topic', 'is', null);
+
+  if (!entries?.length) return undefined;
+
+  const topicCounts = new Map<string, number>();
+  for (const e of entries) {
+    if (!e.topic) continue;
+    topicCounts.set(e.topic, (topicCounts.get(e.topic) || 0) + 1);
+  }
+
+  return Array.from(topicCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 30)
+    .map(([name, count]) => `- ${name} (${count}개)`)
+    .join('\n');
+}
+
 // PATCH: 미분류(inbox) 항목 일괄 재분류 — 병렬 처리 (동시성 제한)
 export async function PATCH() {
   const auth = await requireAuth();
@@ -74,6 +99,9 @@ export async function PATCH() {
   // Fetch user's custom rules
   const userRules = await fetchUserRules(supabase, user.id);
 
+  // Fetch user's existing knowledge topics
+  const existingTopics = await fetchExistingTopics(supabase, user.id);
+
   // Process in parallel with concurrency limit
   const results: Array<{ id: string; category: string; error?: string }> = [];
   let reclassified = 0;
@@ -82,7 +110,7 @@ export async function PATCH() {
   for (let i = 0; i < limited.length; i += CONCURRENCY) {
     const chunk = limited.slice(i, i + CONCURRENCY);
     const chunkResults = await Promise.allSettled(
-      chunk.map((entry) => classifySingleEntry(entry, supabase, user, userPatterns, userRules))
+      chunk.map((entry) => classifySingleEntry(entry, supabase, user, userPatterns, userRules, existingTopics))
     );
 
     for (let j = 0; j < chunkResults.length; j++) {
@@ -106,7 +134,8 @@ export async function PATCH() {
 async function classifyEntryCore(
   entry: { raw_text?: string | null; image_url?: string | null; extracted_text?: string | null; input_type?: string | null },
   userPatterns?: string,
-  userRules?: string
+  userRules?: string,
+  existingTopics?: string
 ): Promise<import('@/types').ClassifyResult | null> {
   const rawText = (entry.raw_text as string) || '';
   const imageUrl = entry.image_url as string | null;
@@ -130,7 +159,7 @@ async function classifyEntryCore(
             base64,
             contentType as 'image/jpeg' | 'image/png' | 'image/webp',
             rawText ? rawText.slice(0, MAX_TEXT_LENGTH) : undefined,
-            { userPatterns, userRules }
+            { userPatterns, userRules, existingTopics }
           );
         }
       } catch {
@@ -146,7 +175,7 @@ async function classifyEntryCore(
       // Image URL expired/invalid — fall back to text classification
       result = await classifyText(
         smartTruncate(fallbackText, MAX_TEXT_LENGTH),
-        { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
+        { userPatterns, userRules, existingTopics, inputType: 'image', textLength: fallbackText.length }
       );
     } else if (
       result &&
@@ -158,7 +187,7 @@ async function classifyEntryCore(
       const imageExtractedText = result.extracted_text;
       const textResult = await classifyText(
         smartTruncate(fallbackText, MAX_TEXT_LENGTH),
-        { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
+        { userPatterns, userRules, existingTopics, inputType: 'image', textLength: fallbackText.length }
       );
       if (textResult.categories[0] !== 'inbox') {
         result = textResult;
@@ -170,7 +199,7 @@ async function classifyEntryCore(
   } else {
     const textToClassify = [rawText, existingExtractedText].filter(Boolean).join('\n\n');
     if (!textToClassify) return null;
-    result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, inputType, textLength: textToClassify.length });
+    result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, existingTopics, inputType, textLength: textToClassify.length });
   }
 
   return result;
@@ -207,9 +236,10 @@ async function classifySingleEntry(
   supabase: SupabaseClient,
   user: User,
   userPatterns?: string,
-  userRules?: string
+  userRules?: string,
+  existingTopics?: string
 ): Promise<string | null> {
-  const result = await classifyEntryCore(entry, userPatterns, userRules);
+  const result = await classifyEntryCore(entry, userPatterns, userRules, existingTopics);
   if (!result) return null;
 
   const updateData = buildUpdateData(result, (entry.input_type as string) || 'text');
@@ -277,8 +307,11 @@ export async function POST(request: NextRequest) {
   // Fetch user's custom rules
   const userRules = await fetchUserRules(supabase, user.id);
 
+  // Fetch user's existing knowledge topics
+  const existingTopics = await fetchExistingTopics(supabase, user.id);
+
   try {
-    const result = await classifyEntryCore(entry, userPatterns, userRules);
+    const result = await classifyEntryCore(entry, userPatterns, userRules, existingTopics);
 
     if (!result) {
       const hasImage = entry.image_url && (entry.input_type === 'image' || entry.input_type === 'mixed');
