@@ -111,25 +111,66 @@ async function classifySingleEntry(
 ): Promise<string | null> {
   const rawText = (entry.raw_text as string) || '';
   const imageUrl = entry.image_url as string | null;
+  const existingExtractedText = (entry.extracted_text as string) || '';
   const inputType = entry.input_type as string;
 
   let result;
 
   if (imageUrl && (inputType === 'image' || inputType === 'mixed')) {
-    if (!isAllowedImageUrl(imageUrl)) return null;
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) return null;
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const base64 = Buffer.from(imageBuffer).toString('base64');
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    result = await classifyImage(
-      base64,
-      contentType as 'image/jpeg' | 'image/png' | 'image/webp',
-      rawText ? rawText.slice(0, MAX_TEXT_LENGTH) : undefined,
-      { userPatterns, userRules }
-    );
+    // Try image-based classification first
+    let imageFetchOk = false;
+    if (isAllowedImageUrl(imageUrl)) {
+      try {
+        const imageResponse = await fetch(imageUrl);
+        if (imageResponse.ok) {
+          imageFetchOk = true;
+          const imageBuffer = await imageResponse.arrayBuffer();
+          const base64 = Buffer.from(imageBuffer).toString('base64');
+          const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+          result = await classifyImage(
+            base64,
+            contentType as 'image/jpeg' | 'image/png' | 'image/webp',
+            rawText ? rawText.slice(0, MAX_TEXT_LENGTH) : undefined,
+            { userPatterns, userRules }
+          );
+        }
+      } catch {
+        // Image fetch failed (network error, timeout, etc.)
+      }
+    }
+
+    // Collect all available text for fallback
+    const fallbackText = [rawText, existingExtractedText, result?.extracted_text]
+      .filter(Boolean).join('\n\n');
+
+    if (!imageFetchOk && fallbackText) {
+      // Image URL expired/invalid — fall back to text classification using stored extracted_text
+      result = await classifyText(
+        smartTruncate(fallbackText, MAX_TEXT_LENGTH),
+        { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
+      );
+    } else if (
+      result &&
+      result.categories.length === 1 &&
+      result.categories[0] === 'inbox' &&
+      fallbackText
+    ) {
+      // Image classified as inbox despite having text — try text classification as 2nd attempt
+      const imageExtractedText = result.extracted_text;
+      const textResult = await classifyText(
+        smartTruncate(fallbackText, MAX_TEXT_LENGTH),
+        { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
+      );
+      if (textResult.categories[0] !== 'inbox') {
+        result = textResult;
+        // Preserve image-extracted text from the vision result
+        if (imageExtractedText) result.extracted_text = imageExtractedText;
+      }
+    }
+
+    if (!result) return null;
   } else {
-    const textToClassify = [rawText, (entry.extracted_text as string) || ''].filter(Boolean).join('\n\n');
+    const textToClassify = [rawText, existingExtractedText].filter(Boolean).join('\n\n');
     if (!textToClassify) return null;
     result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, inputType: entry.input_type as string || 'text', textLength: textToClassify.length });
   }
@@ -222,20 +263,58 @@ export async function POST(request: NextRequest) {
     let result;
 
     if (entry.image_url && (entry.input_type === 'image' || entry.input_type === 'mixed')) {
-      if (!isAllowedImageUrl(entry.image_url)) {
-        return NextResponse.json({ error: '허용되지 않은 이미지 URL입니다.' }, { status: 400 });
+      const rawText = (entry.raw_text || '').slice(0, MAX_TEXT_LENGTH);
+      const existingExtractedText = (entry.extracted_text as string) || '';
+
+      // Try image-based classification first
+      let imageFetchOk = false;
+      if (isAllowedImageUrl(entry.image_url)) {
+        try {
+          const imageResponse = await fetch(entry.image_url);
+          if (imageResponse.ok) {
+            imageFetchOk = true;
+            const imageBuffer = await imageResponse.arrayBuffer();
+            const base64 = Buffer.from(imageBuffer).toString('base64');
+            const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+            const mediaType = contentType as 'image/jpeg' | 'image/png' | 'image/webp';
+            result = await classifyImage(base64, mediaType, rawText || undefined, { userPatterns, userRules });
+          }
+        } catch {
+          // Image fetch failed (network error, timeout, etc.)
+        }
       }
 
-      const imageResponse = await fetch(entry.image_url);
-      if (!imageResponse.ok) {
-        return NextResponse.json({ error: '이미지를 가져올 수 없습니다.' }, { status: 400 });
+      // Collect all available text for fallback
+      const fallbackText = [rawText, existingExtractedText, result?.extracted_text]
+        .filter(Boolean).join('\n\n');
+
+      if (!imageFetchOk && fallbackText) {
+        // Image URL expired/invalid — fall back to text classification
+        result = await classifyText(
+          smartTruncate(fallbackText, MAX_TEXT_LENGTH),
+          { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
+        );
+      } else if (
+        result &&
+        result.categories.length === 1 &&
+        result.categories[0] === 'inbox' &&
+        fallbackText
+      ) {
+        // Image classified as inbox despite having text — try text classification as 2nd attempt
+        const imageExtractedText = result.extracted_text;
+        const textResult = await classifyText(
+          smartTruncate(fallbackText, MAX_TEXT_LENGTH),
+          { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
+        );
+        if (textResult.categories[0] !== 'inbox') {
+          result = textResult;
+          if (imageExtractedText) result.extracted_text = imageExtractedText;
+        }
       }
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const base64 = Buffer.from(imageBuffer).toString('base64');
-      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-      const mediaType = contentType as 'image/jpeg' | 'image/png' | 'image/webp';
-      const rawText = (entry.raw_text || '').slice(0, MAX_TEXT_LENGTH);
-      result = await classifyImage(base64, mediaType, rawText || undefined, { userPatterns, userRules });
+
+      if (!result) {
+        return NextResponse.json({ error: '이미지를 가져올 수 없고, 분류할 텍스트도 없습니다.' }, { status: 400 });
+      }
     } else {
       // Combine raw_text + extracted_text (from on-device OCR) for text classification
       const textToClassify = [entry.raw_text, entry.extracted_text].filter(Boolean).join('\n\n');
