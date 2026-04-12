@@ -110,6 +110,11 @@ export function TodayDashboard({ onEntryClick }: TodayDashboardProps) {
           <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
             {totalCount}
           </span>
+          {!expanded && overdue.length > 0 && (
+            <span className="rounded-full bg-destructive/15 text-destructive px-1.5 py-0.5 text-xs font-medium">
+              지연 {overdue.length}
+            </span>
+          )}
         </div>
         {expanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />

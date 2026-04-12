@@ -101,18 +101,17 @@ export async function PATCH() {
   return NextResponse.json({ reclassified, total: inboxEntries.length, results });
 }
 
-// Helper: classify + update a single entry, returns category on success
-async function classifySingleEntry(
-  entry: Record<string, unknown>,
-  supabase: SupabaseClient,
-  user: User,
+// Core classification logic shared by both PATCH (batch) and POST (single) handlers.
+// Returns the ClassifyResult on success, or null if there's nothing to classify.
+async function classifyEntryCore(
+  entry: { raw_text?: string | null; image_url?: string | null; extracted_text?: string | null; input_type?: string | null },
   userPatterns?: string,
   userRules?: string
-): Promise<string | null> {
+): Promise<import('@/types').ClassifyResult | null> {
   const rawText = (entry.raw_text as string) || '';
   const imageUrl = entry.image_url as string | null;
   const existingExtractedText = (entry.extracted_text as string) || '';
-  const inputType = entry.input_type as string;
+  const inputType = (entry.input_type as string) || 'text';
 
   let result;
 
@@ -144,7 +143,7 @@ async function classifySingleEntry(
       .filter(Boolean).join('\n\n');
 
     if (!imageFetchOk && fallbackText) {
-      // Image URL expired/invalid — fall back to text classification using stored extracted_text
+      // Image URL expired/invalid — fall back to text classification
       result = await classifyText(
         smartTruncate(fallbackText, MAX_TEXT_LENGTH),
         { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
@@ -163,7 +162,6 @@ async function classifySingleEntry(
       );
       if (textResult.categories[0] !== 'inbox') {
         result = textResult;
-        // Preserve image-extracted text from the vision result
         if (imageExtractedText) result.extracted_text = imageExtractedText;
       }
     }
@@ -172,9 +170,14 @@ async function classifySingleEntry(
   } else {
     const textToClassify = [rawText, existingExtractedText].filter(Boolean).join('\n\n');
     if (!textToClassify) return null;
-    result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, inputType: entry.input_type as string || 'text', textLength: textToClassify.length });
+    result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, inputType, textLength: textToClassify.length });
   }
 
+  return result;
+}
+
+// Build DB update payload from a ClassifyResult
+function buildUpdateData(result: import('@/types').ClassifyResult, inputType: string): Record<string, unknown> {
   const topic =
     result.categories.includes('knowledge') && result.topic
       ? result.topic.trim().toLowerCase()
@@ -193,8 +196,23 @@ async function classifySingleEntry(
   }
   if (topic) updateData.topic = topic;
   if (result.due_date) updateData.due_date = result.due_date;
-  // Set context for all categories (null when ambiguous)
   updateData.context = result.context ?? null;
+
+  return updateData;
+}
+
+// Helper: classify + update a single entry, returns category on success
+async function classifySingleEntry(
+  entry: Record<string, unknown>,
+  supabase: SupabaseClient,
+  user: User,
+  userPatterns?: string,
+  userRules?: string
+): Promise<string | null> {
+  const result = await classifyEntryCore(entry, userPatterns, userRules);
+  if (!result) return null;
+
+  const updateData = buildUpdateData(result, (entry.input_type as string) || 'text');
 
   const { error: updateError } = await supabase
     .from('entries')
@@ -260,90 +278,17 @@ export async function POST(request: NextRequest) {
   const userRules = await fetchUserRules(supabase, user.id);
 
   try {
-    let result;
+    const result = await classifyEntryCore(entry, userPatterns, userRules);
 
-    if (entry.image_url && (entry.input_type === 'image' || entry.input_type === 'mixed')) {
-      const rawText = (entry.raw_text || '').slice(0, MAX_TEXT_LENGTH);
-      const existingExtractedText = (entry.extracted_text as string) || '';
-
-      // Try image-based classification first
-      let imageFetchOk = false;
-      if (isAllowedImageUrl(entry.image_url)) {
-        try {
-          const imageResponse = await fetch(entry.image_url);
-          if (imageResponse.ok) {
-            imageFetchOk = true;
-            const imageBuffer = await imageResponse.arrayBuffer();
-            const base64 = Buffer.from(imageBuffer).toString('base64');
-            const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-            const mediaType = contentType as 'image/jpeg' | 'image/png' | 'image/webp';
-            result = await classifyImage(base64, mediaType, rawText || undefined, { userPatterns, userRules });
-          }
-        } catch {
-          // Image fetch failed (network error, timeout, etc.)
-        }
-      }
-
-      // Collect all available text for fallback
-      const fallbackText = [rawText, existingExtractedText, result?.extracted_text]
-        .filter(Boolean).join('\n\n');
-
-      if (!imageFetchOk && fallbackText) {
-        // Image URL expired/invalid — fall back to text classification
-        result = await classifyText(
-          smartTruncate(fallbackText, MAX_TEXT_LENGTH),
-          { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
-        );
-      } else if (
-        result &&
-        result.categories.length === 1 &&
-        result.categories[0] === 'inbox' &&
-        fallbackText
-      ) {
-        // Image classified as inbox despite having text — try text classification as 2nd attempt
-        const imageExtractedText = result.extracted_text;
-        const textResult = await classifyText(
-          smartTruncate(fallbackText, MAX_TEXT_LENGTH),
-          { userPatterns, userRules, inputType: 'image', textLength: fallbackText.length }
-        );
-        if (textResult.categories[0] !== 'inbox') {
-          result = textResult;
-          if (imageExtractedText) result.extracted_text = imageExtractedText;
-        }
-      }
-
-      if (!result) {
-        return NextResponse.json({ error: '이미지를 가져올 수 없고, 분류할 텍스트도 없습니다.' }, { status: 400 });
-      }
-    } else {
-      // Combine raw_text + extracted_text (from on-device OCR) for text classification
-      const textToClassify = [entry.raw_text, entry.extracted_text].filter(Boolean).join('\n\n');
-      if (!textToClassify) {
-        return NextResponse.json({ error: '분류할 내용이 없습니다.' }, { status: 400 });
-      }
-      result = await classifyText(smartTruncate(textToClassify, MAX_TEXT_LENGTH), { userPatterns, userRules, inputType: entry.input_type || 'text', textLength: textToClassify.length });
+    if (!result) {
+      const hasImage = entry.image_url && (entry.input_type === 'image' || entry.input_type === 'mixed');
+      return NextResponse.json(
+        { error: hasImage ? '이미지를 가져올 수 없고, 분류할 텍스트도 없습니다.' : '분류할 내용이 없습니다.' },
+        { status: 400 }
+      );
     }
 
-    const topic =
-      result.categories.includes('knowledge') && result.topic
-        ? result.topic.trim().toLowerCase()
-        : null;
-
-    const updateData: Record<string, unknown> = {
-      categories: result.categories,
-      tags: result.tags,
-      summary: result.summary || null,
-      ai_metadata: result,
-    };
-    // Only update extracted_text for image entries where the AI provides OCR.
-    // For PDF/text entries, on-device extraction already stored the full text — don't overwrite.
-    if (result.extracted_text && (entry.input_type === 'image' || entry.input_type === 'mixed')) {
-      updateData.extracted_text = result.extracted_text;
-    }
-    if (topic) updateData.topic = topic;
-    if (result.due_date) updateData.due_date = result.due_date;
-    // Set context for all categories (null when ambiguous)
-    updateData.context = result.context ?? null;
+    const updateData = buildUpdateData(result, entry.input_type || 'text');
 
     const { error: updateError } = await supabase
       .from('entries')

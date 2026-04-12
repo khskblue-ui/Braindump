@@ -28,7 +28,9 @@ interface EntryEditModalProps {
 
 export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   const updateEntry = useEntryStore((s) => s.updateEntry);
-  const deleteEntry = useEntryStore((s) => s.deleteEntry);
+  const softDelete = useEntryStore((s) => s.softDelete);
+  const restoreEntry = useEntryStore((s) => s.restoreEntry);
+  const fetchEntries = useEntryStore((s) => s.fetchEntries);
   const [rawText, setRawText] = useState(entry.raw_text || '');
   const [summary, setSummary] = useState(entry.summary || '');
   const [categories, setCategories] = useState<EntryCategory[]>(entry.categories);
@@ -78,10 +80,19 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
   };
 
   const handleDelete = async () => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+    if (!confirm('정말 삭제하시겠습니까? 휴지통에서 복원할 수 있습니다.')) return;
     try {
-      await deleteEntry(entry.id);
-      toast.success('삭제되었습니다.');
+      await softDelete(entry.id);
+      toast.success('휴지통으로 이동했습니다.', {
+        action: {
+          label: '되돌리기',
+          onClick: async () => {
+            await restoreEntry(entry.id);
+            fetchEntries();
+          },
+        },
+        duration: 5000,
+      });
       onClose();
     } catch {
       toast.error('삭제에 실패했습니다.');
@@ -255,185 +266,194 @@ export function EntryEditModal({ entry, open, onClose }: EntryEditModalProps) {
             </div>
           </div>
 
-          {/* Context (personal/work) */}
-          <div>
-            <label className="text-sm font-medium">컨텍스트</label>
-            <div className="flex gap-1.5 mt-1">
-              {([
-                { label: '미지정', value: null, icon: null, color: undefined },
-                { label: '개인', value: 'personal' as EntryContext, icon: User, color: '#3B82F6' },
-                { label: '업무', value: 'work' as EntryContext, icon: Building2, color: '#7C3AED' },
-              ] as const).map((item) => {
-                const isSelected = context === item.value;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => setContext(item.value)}
-                    className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
-                      isSelected
-                        ? item.color
-                          ? ''
-                          : 'bg-foreground text-background'
-                        : 'opacity-60 hover:opacity-100'
-                    }`}
-                    style={item.color ? {
-                      backgroundColor: `${item.color}18`,
-                      color: item.color,
-                      outlineColor: isSelected ? item.color : undefined,
-                      outlineWidth: isSelected ? '2px' : undefined,
-                      outlineOffset: '1px',
-                      outlineStyle: isSelected ? 'solid' : undefined,
-                    } : isSelected ? undefined : {
-                      backgroundColor: 'var(--muted)',
-                      color: 'var(--muted-foreground)',
-                    }}
-                  >
-                    {Icon && <Icon className="h-3 w-3" strokeWidth={2} />}
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="text-sm font-medium">태그 (쉼표로 구분)</label>
-            <Input
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              placeholder="태그1, 태그2, 태그3"
-              className="mt-1 focus-visible:ring-blue-400/50"
-            />
-          </div>
-
-          {/* Topic (for knowledge) */}
-          {categories.includes('knowledge') && (
-            <div>
-              <label className="text-sm font-medium">주제</label>
-              <Input
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="주제명"
-                className="mt-1 focus-visible:ring-blue-400/50"
-              />
-            </div>
-          )}
-
-          {/* Due date (for task and schedule) */}
-          {showDueDate && (
-            <div className="space-y-2">
+          {/* Advanced settings — collapsed by default */}
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <span>상세 설정</span>
+              <span className="text-xs group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="space-y-4 pt-2">
+              {/* Context (personal/work) */}
               <div>
-                <label className="text-sm font-medium">{dueDateLabel}</label>
+                <label className="text-sm font-medium">컨텍스트</label>
+                <div className="flex gap-1.5 mt-1">
+                  {([
+                    { label: '미지정', value: null, icon: null, color: undefined },
+                    { label: '개인', value: 'personal' as EntryContext, icon: User, color: '#3B82F6' },
+                    { label: '업무', value: 'work' as EntryContext, icon: Building2, color: '#7C3AED' },
+                  ] as const).map((item) => {
+                    const isSelected = context === item.value;
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => setContext(item.value)}
+                        className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                          isSelected
+                            ? item.color
+                              ? ''
+                              : 'bg-foreground text-background'
+                            : 'opacity-60 hover:opacity-100'
+                        }`}
+                        style={item.color ? {
+                          backgroundColor: `${item.color}18`,
+                          color: item.color,
+                          outlineColor: isSelected ? item.color : undefined,
+                          outlineWidth: isSelected ? '2px' : undefined,
+                          outlineOffset: '1px',
+                          outlineStyle: isSelected ? 'solid' : undefined,
+                        } : isSelected ? undefined : {
+                          backgroundColor: 'var(--muted)',
+                          color: 'var(--muted-foreground)',
+                        }}
+                      >
+                        {Icon && <Icon className="h-3 w-3" strokeWidth={2} />}
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="text-sm font-medium">태그 (쉼표로 구분)</label>
                 <Input
-                  type="datetime-local"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="태그1, 태그2, 태그3"
                   className="mt-1 focus-visible:ring-blue-400/50"
                 />
               </div>
 
-              {/* Calendar export buttons */}
-              {dueDate && (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const e = { ...entry, due_date: new Date(dueDate).toISOString(), summary, raw_text: rawText };
-                      downloadICS(e as Entry);
-                    }}
-                    className="flex-1 text-xs"
-                  >
-                    Apple 캘린더
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const e = { ...entry, due_date: new Date(dueDate).toISOString(), summary, raw_text: rawText };
-                      window.open(getGoogleCalendarUrl(e as Entry), '_blank');
-                    }}
-                    className="flex-1 text-xs"
-                  >
-                    Google 캘린더
-                  </Button>
-                </div>
-              )}
-
-              {/* Reminder selector */}
-              {dueDate && (
+              {/* Topic (for knowledge) */}
+              {categories.includes('knowledge') && (
                 <div>
-                  <label className="text-sm font-medium">리마인드 알림 (최대 2개)</label>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {REMINDER_OPTIONS.map((opt) => {
-                      const selected = reminders.includes(opt.value);
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            if (selected) {
-                              setReminders(reminders.filter(r => r !== opt.value));
-                            } else if (reminders.length < 2) {
-                              setReminders([...reminders, opt.value]);
-                            }
-                          }}
-                          className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all ${
-                            selected
-                              ? 'bg-blue-100 text-blue-700 outline outline-2 outline-offset-1 outline-blue-500'
-                              : reminders.length >= 2
-                                ? 'bg-muted text-muted-foreground opacity-40 cursor-not-allowed'
-                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                          disabled={!selected && reminders.length >= 2}
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <label className="text-sm font-medium">주제</label>
+                  <Input
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="주제명"
+                    className="mt-1 focus-visible:ring-blue-400/50"
+                  />
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Priority - colored dot style, no emoji */}
-          <div>
-            <label className="text-sm font-medium">우선순위</label>
-            <div className="flex gap-1.5 mt-1">
-              {(['high', 'medium', 'low'] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPriority(priority === p ? '' : p)}
-                  className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
-                    priority === p
-                      ? ''
-                      : 'opacity-60 hover:opacity-100'
-                  }`}
-                  style={{
-                    backgroundColor: `${priorityConfig[p].color}18`,
-                    color: priorityConfig[p].color,
-                    outlineColor: priority === p ? priorityConfig[p].color : undefined,
-                    outlineWidth: priority === p ? '2px' : undefined,
-                    outlineOffset: '1px',
-                    outlineStyle: priority === p ? 'solid' : undefined,
-                  }}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: priorityConfig[p].color }}
-                  />
-                  {priorityConfig[p].label}
-                </button>
-              ))}
+              {/* Due date (for task and schedule) */}
+              {showDueDate && (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-sm font-medium">{dueDateLabel}</label>
+                    <Input
+                      type="datetime-local"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="mt-1 focus-visible:ring-blue-400/50"
+                    />
+                  </div>
+
+                  {/* Calendar export buttons */}
+                  {dueDate && (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const e = { ...entry, due_date: new Date(dueDate).toISOString(), summary, raw_text: rawText };
+                          downloadICS(e as Entry);
+                        }}
+                        className="flex-1 text-xs"
+                      >
+                        Apple 캘린더
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const e = { ...entry, due_date: new Date(dueDate).toISOString(), summary, raw_text: rawText };
+                          window.open(getGoogleCalendarUrl(e as Entry), '_blank');
+                        }}
+                        className="flex-1 text-xs"
+                      >
+                        Google 캘린더
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Reminder selector */}
+                  {dueDate && (
+                    <div>
+                      <label className="text-sm font-medium">리마인드 알림 (최대 2개)</label>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {REMINDER_OPTIONS.map((opt) => {
+                          const selected = reminders.includes(opt.value);
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                if (selected) {
+                                  setReminders(reminders.filter(r => r !== opt.value));
+                                } else if (reminders.length < 2) {
+                                  setReminders([...reminders, opt.value]);
+                                }
+                              }}
+                              className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all ${
+                                selected
+                                  ? 'bg-blue-100 text-blue-700 outline outline-2 outline-offset-1 outline-blue-500'
+                                  : reminders.length >= 2
+                                    ? 'bg-muted text-muted-foreground opacity-40 cursor-not-allowed'
+                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                              }`}
+                              disabled={!selected && reminders.length >= 2}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Priority - colored dot style, no emoji */}
+              <div>
+                <label className="text-sm font-medium">우선순위</label>
+                <div className="flex gap-1.5 mt-1">
+                  {(['high', 'medium', 'low'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPriority(priority === p ? '' : p)}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                        priority === p
+                          ? ''
+                          : 'opacity-60 hover:opacity-100'
+                      }`}
+                      style={{
+                        backgroundColor: `${priorityConfig[p].color}18`,
+                        color: priorityConfig[p].color,
+                        outlineColor: priority === p ? priorityConfig[p].color : undefined,
+                        outlineWidth: priority === p ? '2px' : undefined,
+                        outlineOffset: '1px',
+                        outlineStyle: priority === p ? 'solid' : undefined,
+                      }}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: priorityConfig[p].color }}
+                      />
+                      {priorityConfig[p].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          </details>
         </div>
 
         {/* Footer with separator */}

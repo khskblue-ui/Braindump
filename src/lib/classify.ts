@@ -268,6 +268,7 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    console.warn('[classify] JSON 파싱 실패 — inbox fallback. 원본:', text.slice(0, 200));
     return { categories: ['inbox'], tags: [] };
   }
 
@@ -306,8 +307,10 @@ function parseResponse(response: Anthropic.Messages.Message): ClassifyResult {
       };
     }
 
+    console.warn('[classify] Zod 검증 실패 — inbox fallback. 파싱 결과:', JSON.stringify(parsed).slice(0, 300));
     return { categories: ['inbox'], tags: [] };
-  } catch {
+  } catch (err) {
+    console.warn('[classify] JSON.parse 실패 — inbox fallback:', err);
     return { categories: ['inbox'], tags: [] };
   }
 }

@@ -27,7 +27,6 @@ export interface Entry {
   priority: EntryPriority | null;
   is_completed: boolean;
   is_pinned: boolean;
-  sort_order: number | null;
   reminders: ReminderOption[];
   input_type: EntryInputType;
   context: EntryContext | null;

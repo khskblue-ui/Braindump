@@ -19,10 +19,10 @@ async function recordClassifyPattern(
   await supabase.from('user_classify_patterns').insert({
     user_id: userId,
     entry_id: entryId,
-    original_categories: categoriesChanged ? original.categories : null,
-    corrected_categories: categoriesChanged ? updated.categories : null,
-    original_tags: tagsChanged ? original.tags : null,
-    corrected_tags: tagsChanged ? updated.tags : null,
+    original_categories: original.categories || [],
+    corrected_categories: categoriesChanged ? updated.categories : original.categories || [],
+    original_tags: tagsChanged ? (original.tags || []) : null,
+    corrected_tags: tagsChanged ? (updated.tags || []) : null,
     keyword_context: rawText?.slice(0, 200) || null,
   });
 }

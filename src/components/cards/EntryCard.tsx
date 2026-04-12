@@ -74,7 +74,9 @@ export const EntryCard = memo(function EntryCard({ entry, onClick, sortMode, onM
                         : null;
                     updateEntry(entry.id, { context: next });
                   }}
-                  className="text-xs font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
+                  className={`text-xs font-medium px-2 py-0.5 rounded-md flex items-center gap-1 transition-opacity ${
+                    entry.context ? 'opacity-60 hover:opacity-100' : ''
+                  }`}
                   style={{
                     backgroundColor: entry.context === 'personal' ? '#3B82F618' : entry.context === 'work' ? '#7C3AED18' : undefined,
                     color: entry.context === 'personal' ? '#3B82F6' : entry.context === 'work' ? '#7C3AED' : 'var(--muted-foreground)',
