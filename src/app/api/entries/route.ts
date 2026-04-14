@@ -91,10 +91,9 @@ export async function GET(request: NextRequest) {
 
   if (query) {
     const q = query.replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/,/g, '\\,').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-    const tagQuery = query.replace(/^#/, '');
+    const tagQ = query.replace(/^#/, '').replace(/%/g, '\\%').replace(/_/g, '\\_');
 
-    // Two separate queries: text search + tag search, merged client-side
-    // because PostgREST .or() doesn't reliably support .cs on JSONB arrays
+    // Text search: .or() works for plain column ilike filters
     const textQuery = supabase
       .from('entries')
       .select('*')
@@ -108,12 +107,15 @@ export async function GET(request: NextRequest) {
       textQuery.contains('categories', [category]);
     }
 
+    // Tag search: fetch all non-deleted user entries with tags, then filter in JS.
+    // PostgREST cannot cast text[] to text for ilike inside .or() (PGRST100)
+    // and .filter('tags::text', ...) fails because text[] ~~* is not a valid operator.
     const tagSearchQuery = supabase
       .from('entries')
       .select('*')
       .eq('user_id', user.id)
       .is('deleted_at', null)
-      .or(`tags::text.ilike.%${tagQuery.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`)
+      .not('tags', 'is', null)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit);
 
@@ -128,9 +130,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '검색에 실패했습니다.' }, { status: 500 });
     }
 
+    // Filter tags in JS since PostgREST can't ilike on text[] columns
+    const tagLower = tagQ.toLowerCase();
+    const tagMatches = (tagResult.data || []).filter((e) =>
+      Array.isArray(e.tags) && e.tags.some((t: string) => t.toLowerCase().includes(tagLower))
+    );
+
     // Merge and deduplicate by id, apply unified sort
     const merged = new Map<string, typeof textResult.data[0]>();
-    for (const e of [...(textResult.data || []), ...(tagResult.data || [])]) {
+    for (const e of [...(textResult.data || []), ...tagMatches]) {
       // Apply context filter in JS to avoid double .or() conflict with PostgREST
       if (context && (context === 'personal' || context === 'work')) {
         if (e.context !== context && e.context !== null) continue;
@@ -165,7 +173,7 @@ export async function GET(request: NextRequest) {
 
     // hasMore: true only if either sub-query returned a full page (limit+1 rows from inclusive range)
     const textFull = (textResult.data?.length ?? 0) > limit;
-    const tagFull = (tagResult.data?.length ?? 0) > limit;
+    const tagFull = tagMatches.length > limit;
     const hasMore = textFull || tagFull;
     const trimmedEntries = allEntries.slice(0, limit);
     const entriesWithSignedUrls = trimmedEntries.length > 0 ? await attachSignedUrls(supabase, trimmedEntries) : [];
