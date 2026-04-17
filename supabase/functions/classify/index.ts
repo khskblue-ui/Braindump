@@ -26,30 +26,48 @@ interface ClassifyResult {
 function buildCalendarReference(): string {
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const days = ["일", "월", "화", "수", "목", "금", "토"];
-  const lines: string[] = [];
 
-  // Generate 21 days from today
+  // Find week boundaries (Korean weeks: Mon–Sun)
+  const todayDay = now.getDay(); // 0=일 ~ 6=토
+  const daysUntilNextMon = todayDay === 0 ? 1 : 8 - todayDay;
+
+  const nextWeekStartDate = new Date(now);
+  nextWeekStartDate.setDate(nextWeekStartDate.getDate() + daysUntilNextMon);
+  const weekAfterStartDate = new Date(nextWeekStartDate);
+  weekAfterStartDate.setDate(weekAfterStartDate.getDate() + 7);
+
+  // Generate 21 days with week labels
+  const lines: string[] = [];
   for (let i = 0; i < 21; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
-    const label = i === 0 ? " ← 오늘" : i === 1 ? " ← 내일" : "";
-    lines.push(`${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]})${label}`);
+    const dayLabel = i === 0 ? " ← 오늘" : i === 1 ? " ← 내일" : "";
+
+    // Determine week tag
+    let weekTag: string;
+    if (d < nextWeekStartDate) {
+      weekTag = "[이번주]";
+    } else if (d < weekAfterStartDate) {
+      weekTag = "[다음주]";
+    } else {
+      weekTag = "[다다음주]";
+    }
+
+    lines.push(
+      `${weekTag} ${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]})${dayLabel}`
+    );
   }
 
-  // Find week boundaries for "이번주" / "다음주" / "차주"
-  const todayDay = now.getDay(); // 0=일 ~ 6=토
-  // Days until next Monday (Korean weeks start Monday)
-  const daysUntilNextMon = todayDay === 0 ? 1 : 8 - todayDay;
-  const thisWeekEnd = new Date(now);
-  thisWeekEnd.setDate(thisWeekEnd.getDate() + daysUntilNextMon - 1);
-  const nextWeekStart = new Date(now);
-  nextWeekStart.setDate(nextWeekStart.getDate() + daysUntilNextMon);
+  // Build quick-reference for "다음주 X요일" lookups
+  const nextWeekDays: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(nextWeekStartDate);
+    d.setDate(d.getDate() + i);
+    nextWeekDays.push(`${days[d.getDay()]}=${d.getMonth() + 1}/${d.getDate()}`);
+  }
 
-  return (
-    `이번주 남은 기간: ~${thisWeekEnd.getMonth() + 1}/${thisWeekEnd.getDate()} (${days[thisWeekEnd.getDay()]})\n` +
-    `다음주/차주 시작: ${nextWeekStart.getMonth() + 1}/${nextWeekStart.getDate()} (${days[nextWeekStart.getDay()]})\n\n` +
-    lines.join("\n")
-  );
+  return `## 다음주 요일 빠른 참조\n다음주: ${nextWeekDays.join(", ")}\n\n` +
+    lines.join("\n");
 }
 
 function buildSystemPrompt(userPatterns?: string, userRules?: string): string {
