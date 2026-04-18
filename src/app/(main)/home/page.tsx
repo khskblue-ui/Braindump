@@ -53,7 +53,11 @@ export default function DashboardPage() {
   const openEntry = useCallback((entry: Entry) => {
     if (sortMode) return;
     setSelectedEntryId(entry.id);
-    const hasLongContent = entry.input_type === 'pdf' || (entry.extracted_text && entry.extracted_text.length > 200);
+    const contentLength = Math.max(
+      entry.extracted_text?.length ?? 0,
+      entry.raw_text?.length ?? 0
+    );
+    const hasLongContent = entry.input_type === 'pdf' || !!entry.image_url || contentLength > 200;
     setModalMode(hasLongContent ? 'view' : 'edit');
   }, [sortMode]);
 
