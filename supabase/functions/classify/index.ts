@@ -624,7 +624,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     updateData.extracted_text = result.extracted_text;
   }
   if (topic) updateData.topic = topic;
-  if (result.due_date) updateData.due_date = result.due_date;
+  // Preserve existing due_date to prevent relative-date drift across re-classifications.
+  // Relative expressions like "다음주 금요일" would otherwise be re-interpreted against the
+  // current date on every classify, causing the date to roll forward each week.
+  // Only set due_date when the entry has none yet (initial classification).
+  if (result.due_date && !entry.due_date) {
+    updateData.due_date = result.due_date;
+  }
   // Set context for all categories (null when ambiguous)
   updateData.context = result.context ?? null;
 

@@ -206,7 +206,16 @@ async function classifyEntryCore(
 }
 
 // Build DB update payload from a ClassifyResult
-function buildUpdateData(result: import('@/types').ClassifyResult, inputType: string): Record<string, unknown> {
+// existingDueDate: if the entry already has a due_date set, we preserve it to prevent
+// relative-date drift (e.g., "다음주 금요일" gets re-interpreted every re-classification
+// against the current date, causing the due_date to roll forward each week).
+// Users who want to change a due_date should edit it directly in the UI, or clear it
+// to null first (which will allow the next classify to set a fresh value).
+function buildUpdateData(
+  result: import('@/types').ClassifyResult,
+  inputType: string,
+  existingDueDate: string | null = null
+): Record<string, unknown> {
   const topic =
     result.categories.includes('knowledge') && result.topic
       ? result.topic.trim().toLowerCase()
@@ -224,7 +233,11 @@ function buildUpdateData(result: import('@/types').ClassifyResult, inputType: st
     updateData.extracted_text = result.extracted_text;
   }
   if (topic) updateData.topic = topic;
-  if (result.due_date) updateData.due_date = result.due_date;
+  // Preserve existing due_date to prevent relative-date drift across re-classifications.
+  // Only set due_date when the entry has none yet (initial classification).
+  if (result.due_date && !existingDueDate) {
+    updateData.due_date = result.due_date;
+  }
   updateData.context = result.context ?? null;
 
   return updateData;
@@ -242,7 +255,11 @@ async function classifySingleEntry(
   const result = await classifyEntryCore(entry, userPatterns, userRules, existingTopics);
   if (!result) return null;
 
-  const updateData = buildUpdateData(result, (entry.input_type as string) || 'text');
+  const updateData = buildUpdateData(
+    result,
+    (entry.input_type as string) || 'text',
+    (entry.due_date as string | null) ?? null
+  );
 
   const { error: updateError } = await supabase
     .from('entries')
@@ -321,7 +338,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const updateData = buildUpdateData(result, entry.input_type || 'text');
+    const updateData = buildUpdateData(
+      result,
+      entry.input_type || 'text',
+      (entry.due_date as string | null) ?? null
+    );
 
     const { error: updateError } = await supabase
       .from('entries')
