@@ -7,7 +7,7 @@ import { X, Zap, Smartphone } from 'lucide-react';
 
 const DISMISS_KEY = 'braindump-pwa-prompt-dismissed';
 const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
-const TESTFLIGHT_URL = 'https://testflight.apple.com/join/wuF7Bn8a';
+const APP_STORE_URL = 'https://apps.apple.com/kr/app/braindump/id6761980469';
 
 export function PwaInstallPrompt() {
   const [show, setShow] = useState(false);
@@ -61,12 +61,12 @@ export function PwaInstallPrompt() {
                     모바일에서 음성 입력, 공유 등 더 많은 기능을 사용하세요.
                   </p>
                   <a
-                    href={TESTFLIGHT_URL}
+                    href={APP_STORE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block mt-2 bg-white text-blue-600 text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-blue-50 transition-colors"
                   >
-                    TestFlight에서 설치
+                    App Store에서 설치
                   </a>
                 </>
               ) : isIOS ? (
@@ -76,12 +76,12 @@ export function PwaInstallPrompt() {
                     전용 앱에서 음성 입력, 공유 등 모든 기능을 사용하세요.
                   </p>
                   <a
-                    href={TESTFLIGHT_URL}
+                    href={APP_STORE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block mt-2 bg-white text-blue-600 text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-blue-50 transition-colors"
                   >
-                    TestFlight에서 설치
+                    App Store에서 설치
                   </a>
                 </>
               ) : (

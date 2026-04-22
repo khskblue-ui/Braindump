@@ -9,7 +9,7 @@ interface PlatformCTAProps {
   variant?: 'default' | 'large';
 }
 
-const TESTFLIGHT_URL = 'https://testflight.apple.com/join/wuF7Bn8a';
+const APP_STORE_URL = 'https://apps.apple.com/kr/app/braindump/id6761980469';
 
 export function PlatformCTA({ variant = 'default' }: PlatformCTAProps) {
   const [ctx, setCtx] = useState<BrowserContext | null>(null);
@@ -44,7 +44,7 @@ function IOSCTA({ variant }: { variant: 'default' | 'large' }) {
   return (
     <div className="flex flex-col items-center gap-3">
       <a
-        href={TESTFLIGHT_URL}
+        href={APP_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center gap-2.5 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors ${
@@ -52,11 +52,11 @@ function IOSCTA({ variant }: { variant: 'default' | 'large' }) {
         }`}
       >
         <Apple className="h-5 w-5" fill="currentColor" strokeWidth={0} />
-        TestFlight로 베타 참여
+        App Store에서 다운로드
         <ArrowRight className="h-4 w-4" />
       </a>
       <p className={`text-gray-400 ${isLarge ? 'text-sm' : 'text-xs'}`}>
-        무료 · App Store 출시 예정
+        무료 · App Store
       </p>
     </div>
   );
@@ -126,7 +126,7 @@ export function PlatformCards() {
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
       {/* iOS */}
       <a
-        href={TESTFLIGHT_URL}
+        href={APP_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="group flex flex-col items-center gap-3 p-6 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
@@ -136,7 +136,7 @@ export function PlatformCards() {
         </div>
         <div className="text-center">
           <h3 className="font-bold text-sm">iOS 앱</h3>
-          <p className="text-xs text-gray-400 mt-1">TestFlight 베타</p>
+          <p className="text-xs text-gray-400 mt-1">App Store</p>
         </div>
         <span className="text-xs font-medium text-blue-600 group-hover:underline">
           참여하기 →

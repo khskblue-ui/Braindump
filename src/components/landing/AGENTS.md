@@ -16,7 +16,7 @@
 | `HeroDemo.tsx` | 히어로 섹션 — 제목, 부제목, CTA 버튼 |
 | `InstallButton.tsx` | PWA 설치 버튼. `beforeinstallprompt` 이벤트 감지 |
 | `InstallGuideModal.tsx` | iOS/Android PWA 설치 가이드 모달. 단계별 스크린샷 |
-| `PlatformCTA.tsx` | iOS/웹/데스크탑 플랫폼별 CTA. TestFlight 링크 |
+| `PlatformCTA.tsx` | iOS/웹/데스크탑 플랫폼별 CTA. App Store 링크 |
 | `ScrollReveal.tsx` | 스크롤 진입 시 fade-up 애니메이션 |
 
 ## Subdirectories

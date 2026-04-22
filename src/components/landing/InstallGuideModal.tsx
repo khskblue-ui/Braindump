@@ -47,7 +47,7 @@ export function InstallGuideModal({ open, onClose }: InstallGuideModalProps) {
   // In-app browser or non-Safari iOS
   if (browserCtx.type === 'inapp' || browserCtx.type === 'ios-non-safari') {
     const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
-    // iOS in-app: show TestFlight link directly
+    // iOS in-app: show App Store link directly
     if (isIOS) {
       return (
         <ModalShell onClose={onClose} title="앱 설치하기">
@@ -304,9 +304,9 @@ function StepItem({
   );
 }
 
-/* ─── iOS Guide (TestFlight native app) ─── */
+/* ─── iOS Guide (App Store native app) ─── */
 
-const TESTFLIGHT_URL = 'https://testflight.apple.com/join/wuF7Bn8a';
+const APP_STORE_URL = 'https://apps.apple.com/kr/app/braindump/id6761980469';
 
 function IOSGuide() {
   return (
@@ -329,17 +329,17 @@ function IOSGuide() {
       </div>
 
       <a
-        href={TESTFLIGHT_URL}
+        href={APP_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
       >
         <Download className="h-4 w-4" />
-        TestFlight에서 설치하기
+        App Store에서 설치하기
       </a>
 
       <p className="text-xs text-center text-gray-400">
-        현재 베타 테스트 중이며, App Store 정식 출시 예정입니다.
+        App Store에서 바로 설치할 수 있습니다.
       </p>
     </div>
   );
@@ -439,10 +439,10 @@ function DesktopGuide() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-800">iOS 앱</p>
-              <p className="text-xs text-gray-400">TestFlight 베타 · App Store 출시 예정</p>
+              <p className="text-xs text-gray-400">App Store 정식 출시</p>
             </div>
             <a
-              href={TESTFLIGHT_URL}
+              href={APP_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-shrink-0 text-xs font-medium text-blue-600 hover:underline"
