@@ -1,0 +1,47 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.104.0"
+  },
+  "remote": {
+    "https://esm.sh/@anthropic-ai/sdk@0.39.0": "063508334fb72da1dc091fd51266e2c4e055019fdf95e287976bcb3ac9228795",
+    "https://esm.sh/@supabase/supabase-js@2.104.0": "67037e235b6fbec8e8eed1ca97714a9379c8cc60af4e8747dfe6cf4c43f661bb"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@anthropic-ai/sdk@0.81",
+        "npm:@base-ui/react@^1.3.0",
+        "npm:@supabase/ssr@0.10",
+        "npm:@supabase/supabase-js@^2.101.1",
+        "npm:@tailwindcss/postcss@4",
+        "npm:@types/node@20",
+        "npm:@types/react-dom@19",
+        "npm:@types/react@19",
+        "npm:class-variance-authority@~0.7.1",
+        "npm:clsx@^2.1.1",
+        "npm:date-fns@^4.1.0",
+        "npm:eslint-config-next@16.2.2",
+        "npm:eslint@9",
+        "npm:framer-motion@^12.38.0",
+        "npm:lucide-react@^1.7.0",
+        "npm:next-themes@~0.4.6",
+        "npm:next@16.2.2",
+        "npm:p-limit@^7.3.0",
+        "npm:pdfjs-dist@^4.9.155",
+        "npm:react-dom@19.2.4",
+        "npm:react@19.2.4",
+        "npm:server-only@^0.0.1",
+        "npm:shadcn@^4.1.2",
+        "npm:sharp@~0.34.5",
+        "npm:sonner@^2.0.7",
+        "npm:tailwind-merge@^3.5.0",
+        "npm:tailwindcss@4",
+        "npm:tw-animate-css@^1.4.0",
+        "npm:typescript@5",
+        "npm:zod@^4.3.6",
+        "npm:zustand@^5.0.12"
+      ]
+    }
+  }
+}
