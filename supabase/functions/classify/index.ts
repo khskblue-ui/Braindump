@@ -70,7 +70,7 @@ function buildCalendarReference(): string {
     lines.join("\n");
 }
 
-function buildSystemPrompt(userPatterns?: string, userRules?: string): string {
+export function buildSystemPrompt(userPatterns?: string, userRules?: string): string {
   // Use Korean timezone (KST, UTC+9) for correct date/day-of-week
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const days = ["일", "월", "화", "수", "목", "금", "토"];
@@ -84,17 +84,47 @@ function buildSystemPrompt(userPatterns?: string, userRules?: string): string {
 
 ## 날짜 참조 캘린더 (반드시 이 표를 참고하여 날짜를 결정하세요)
 ${calendar}
+
+## 분류 원칙 (판단 전 반드시 먼저 적용)
+
+⚠️ 사용자 정의 규칙(user_classify_rules)은 아래 원칙보다 우선합니다. 규칙에 매칭되면 원칙 B/C/D 무시하고 규칙 카테고리를 반드시 포함하세요.
+
+[원칙 A — 한 Entry = 한 primary]
+categories 배열의 첫 번째 값은 AI가 가장 확신하는 단일 카테고리 하나입니다. 내용 유사성·부수 명사·"완료 후 가치" 같은 이유로 추가 카테고리를 붙이지 마세요.
+- ✅ "A사 견적 팀장님 보고" → ["task"]
+- ❌ "보고서 쓰기" → ["task", "memo"]  (보고서라는 명사 때문에 memo 금지)
+
+[원칙 B — secondary는 schedule만]
+두 번째 카테고리는 오직 "schedule"만 허용됩니다. 그리고 schedule은 **명시적 날짜/시간이 Action의 속성(=Action의 마감/발생 시점)일 때만** 붙입니다.
+- ✅ "내일 3시 팀 미팅 자료 준비" → ["task", "schedule"]  (내일 3시가 준비 Action의 마감)
+- ❌ "4/30 출고 일정 사전 공유하기" → ["task"]  (4/30은 "출고 일정"의 속성이지 공유 Action의 속성이 아님. due_date=null)
+
+[원칙 C — 날짜 소유 구분]
+문장 내 날짜가 **행위의 대상**(ReferenceTarget)이 가진 속성이면 schedule/due_date에 반영하지 마세요. 날짜가 **행위 자체**의 속성일 때만 반영합니다.
+- ✅ "4/30에 보고하기" → ["task", "schedule"], due_date=4/30  (4/30은 보고 Action의 마감)
+- ❌ "2/15 면접 일정 공유" → ["task"], due_date=null  (2/15는 면접의 속성, 공유 Action의 속성 아님)
+
+[원칙 D — 완료 후 기록은 별도 Entry]
+"회의록 작성하기"는 task입니다. 작성된 회의록 본문은 사용자가 별도 Entry로 저장합니다. 원 Entry에 memo를 덧붙이지 마세요.
+- ✅ "회의록 작성하기" → ["task"]
+- ❌ "회의록 작성하기" → ["task", "memo"]
+
+⚠️ categories 배열 길이는 최대 2입니다. 3개 이상 반환하면 분류가 거부됩니다.
+
  사용자가 입력한 텍스트 또는 이미지를 분석하여 JSON으로 분류하세요.
 이미지가 포함된 경우 이미지 내용을 읽고 extracted_text에 추출한 텍스트를 포함하세요.
 
 ## 분류 판단 기준 (순서대로 적용)
 
-1단계 — 시간 정보가 있는가?
-  특정 날짜/시간/요일이 포함되면 → schedule
+1단계 — Action이 가진 날짜/시간이 있는가?
+  문장의 "행위(Action) 자체"가 특정 날짜/시간/요일을 마감·발생 시점으로 가지면 → "schedule" 을 secondary로 추가
+  ⚠️ 날짜가 행위의 **대상**(예: "공유할 출고 일정이 4/30")에 속한 속성이면 schedule을 붙이지 않습니다. 원칙 B·C 참조.
+  예: "내일 3시 팀 미팅 자료 준비" — 준비 Action의 마감이 내일 3시 → schedule 추가
+  예: "4/30 출고 일정 공유" — 4/30은 출고 일정의 속성, 공유 Action의 속성 아님 → schedule 제외
 
 2단계 — "했다/안했다"로 완결할 수 있는가?
   구체적 행동이고, 완료 시 체크할 수 있으면 → task
-  예: "보고서 제출", "우유 사기", "엄마한테 전화"
+  예: "A사 견적 팀장님 보고", "B법인 계약서 검토", "C연구소 샘플 발송"
   한국어 신호: ~해야 함, ~하기, ~할 것, ~해야지, ~마감, ~까지, ~제출
 
 3단계 — 아직 열려있는 생각인가?
@@ -135,16 +165,15 @@ ${calendar}
 
 ## 복수 카테고리 규칙
 
-하나의 입력이 여러 성격을 가질 수 있습니다. 해당하는 카테고리를 모두 포함하세요.
+하나의 입력이 여러 성격을 가질 수 있습니다. 원칙 A/B를 반드시 먼저 적용하세요.
 - 첫 번째 값이 가장 지배적인 카테고리 (primary)
-- 최대 3개까지
+- 최대 2개까지 (두 번째는 오직 "schedule"만 허용 — 원칙 B 참조)
 - 단일 성격이면 1개만
 
 예:
-- "내일 3시 미팅 자료 준비" → ["schedule", "task"] (일정이면서 할 일)
+- "내일 3시 미팅 자료 준비" → ["task", "schedule"] (준비 Action의 마감이 내일 3시)
 - "블로그 글 써야겠다" → ["idea"] (아직 열린 생각)
 - "보고서 제출하기" → ["task"] (단일 할 일)
-- "회의에서 예산 500만원 확정, 다음주 수요일까지 보고서 제출" → ["schedule", "task", "memo"]
 
 ## 날짜 해석 규칙 (반드시 위의 날짜 참조 캘린더를 보고 결정하세요!)
 - "다음주", "차주"는 위 캘린더의 "다음주/차주 시작" 날짜부터의 주
@@ -174,7 +203,7 @@ ${calendar}
   "due_date": "ISO8601 날짜 (schedule 포함 시만, 그 외 null). 반드시 한국 시간(KST, +09:00) 기준. 예: 2026-04-10T15:00:00+09:00",
   "context": "personal 또는 work (모든 카테고리에 적용). 업무/회사/직장 관련이면 work, 개인 생활/취미/건강이면 personal. 맥락이 불분명하면 null",
   "related_topics": ["관련 주제"]
-}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하고, context가 지정된 경우 반드시 해당 값으로 설정하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n` : ''}`;
+}${userPatterns ? `\n\n## 사용자 분류 패턴 (이전 수정 이력 기반)\n${userPatterns}\n이 패턴을 참고하여 분류하되, 맥락에 맞게 판단하세요.\n` : ''}${userRules ? `\n\n## 사용자 정의 규칙 (반드시 우선 적용)\n아래 키워드가 입력에 포함되면 해당 카테고리를 반드시 포함하고, context가 지정된 경우 반드시 해당 값으로 설정하세요. 사용자 정의 규칙은 다른 판단보다 우선합니다.\n${userRules}\n사용자 정의 규칙은 원칙 A/B/C/D보다 우선합니다.\n` : ''}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,8 +268,8 @@ function parseNewFormat(parsed: Record<string, unknown>): ClassifyResult | null 
   const { categories, tags, topic, extracted_text, summary, due_date, context, related_topics } =
     parsed;
 
-  // categories: array of 1-3 valid values
-  if (!Array.isArray(categories) || categories.length === 0 || categories.length > 3) return null;
+  // categories: array of 1-2 valid values (원칙 B — secondary는 schedule만)
+  if (!Array.isArray(categories) || categories.length === 0 || categories.length > 2) return null;
   if (!categories.every(isValidCategory)) return null;
 
   // tags: array of strings (default [])
@@ -343,6 +372,7 @@ async function classifyText(
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: options?.maxTokens ?? 800,
+    temperature: 0,
     system: buildSystemPrompt(options?.userPatterns, options?.userRules),
     messages: [{ role: "user", content: meta + text }],
   });
@@ -372,6 +402,7 @@ async function classifyImage(
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 800,
+    temperature: 0,
     system: buildSystemPrompt(options?.userPatterns, options?.userRules),
     messages: [{ role: "user", content }],
   });
@@ -597,13 +628,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return jsonResponse({ categories: ["inbox"], tags: [], error: "Classification failed" }, 500);
   }
 
-  // For PDF entries: ensure knowledge category (PDFs are typically reference material)
+  // For PDF entries: enforce 원칙 B — primary를 knowledge로 강제 교체, schedule은 secondary로 보존.
+  // (PDFs are typically reference material; any other primary is replaced.)
   if (entryInputType === "pdf") {
-    if (result.categories.length === 1 && (result.categories[0] === "inbox" || result.categories[0] === "memo")) {
-      result.categories = ["knowledge"];
-    } else if (!result.categories.includes("knowledge")) {
-      result.categories = [...result.categories, "knowledge"];
-    }
+    const hadSchedule = result.categories.includes("schedule");
+    result.categories = hadSchedule ? ["knowledge", "schedule"] : ["knowledge"];
   }
 
   // ── Build update payload ──────────────────────────────────────────────
