@@ -4,9 +4,37 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Trash2, Save, Brain, ChevronRight, BookOpen, History, ListChecks, FileText, ExternalLink } from 'lucide-react';
+import { Settings, LogOut, Trash2, Save, Brain, ChevronRight, BookOpen, History, ListChecks, FileText, ExternalLink, Mail, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+
+const FEEDBACK_EMAIL = 'lifescienkhs@naver.com';
+
+/** Build the mailto: URL with a Korean feedback template + runtime browser info. */
+function buildMailtoUrl(): string {
+  const subject = encodeURIComponent('BrainDump 의견');
+  const body = encodeURIComponent(
+    `(여기에 의견을 적어주세요)\n\n\n---\n아래 정보는 문제 진단에 참고됩니다. 필요 없으면 삭제하세요.\n\n브라우저: ${navigator.userAgent}\n화면: ${window.innerWidth} x ${window.innerHeight}\n페이지: ${window.location.href}\n시간: ${new Date().toISOString()}`
+  );
+  return `mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`;
+}
+
+/** Copy text to clipboard with textarea fallback for environments without Clipboard API. */
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  // Fallback: textarea + execCommand (same pattern as InstallGuideModal)
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+}
 
 const PURGE_OPTIONS = [
   { value: 7, label: '7일' },
@@ -21,6 +49,14 @@ export default function SettingsPage() {
   const [savedValue, setSavedValue] = useState<number>(30);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+  // Default mailto uses only the recipient; useEffect upgrades it with runtime browser info
+  // post-hydration to avoid SSR/CSR mismatch on `navigator`/`window` access.
+  const [mailtoUrl, setMailtoUrl] = useState(`mailto:${FEEDBACK_EMAIL}`);
+
+  useEffect(() => {
+    setMailtoUrl(buildMailtoUrl());
+  }, []);
 
   const hasChanges = autoPurgeDays !== savedValue;
 
@@ -36,6 +72,17 @@ export default function SettingsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCopyEmail = async () => {
+    try {
+      await copyToClipboard(FEEDBACK_EMAIL);
+      setEmailCopied(true);
+      toast.success('이메일 주소를 복사했어요.');
+      setTimeout(() => setEmailCopied(false), 2000);
+    } catch {
+      toast.error('복사에 실패했어요. 주소를 직접 선택해 복사해주세요.');
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -147,7 +194,7 @@ export default function SettingsPage() {
             <BookOpen className="h-4 w-4" strokeWidth={1.5} /> 도움말
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-1">
           <a
             href="/guide"
             target="_blank"
@@ -160,6 +207,50 @@ export default function SettingsPage() {
             </div>
             <ExternalLink className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
           </a>
+
+          {/* Feedback: open default mail app via mailto: */}
+          <a
+            href={mailtoUrl}
+            rel="noopener"
+            className="flex items-center justify-between py-2.5 hover:bg-accent rounded-md px-2 -mx-2 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Mail className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-sm">개발자에게 의견 보내기</span>
+            </div>
+            <ExternalLink className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          </a>
+
+          {/* Email copy fallback for environments without a mail app */}
+          <div className="px-2 -mx-2 py-2.5 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Copy className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                <span className="text-sm text-muted-foreground font-mono">{FEEDBACK_EMAIL}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopyEmail}
+                className="h-7 px-2 gap-1 text-xs"
+              >
+                {emailCopied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    복사됨
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    복사
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              메일 앱이 열리지 않으면 아래 주소를 복사해 사용해주세요.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
