@@ -27,7 +27,10 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isLanding = pathname === '/';
-  const isAuthPage = pathname.startsWith('/login');
+  const isAuthPage =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password');
   const isPublicPage = pathname.startsWith('/privacy') || pathname.startsWith('/guide');
   const isApiRoute = pathname.startsWith('/api');
 

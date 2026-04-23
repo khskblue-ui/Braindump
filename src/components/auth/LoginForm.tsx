@@ -207,6 +207,16 @@ export function LoginForm() {
         <Button type="submit" className="w-full h-11" disabled={loading}>
           {loading ? '처리 중...' : isSignUp ? '회원가입' : '로그인'}
         </Button>
+
+        {/* Forgot password — sign-in mode only */}
+        {!isSignUp && (
+          <a
+            href="/forgot-password"
+            className="block text-center text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4 transition-colors"
+          >
+            비밀번호를 잊으셨나요?
+          </a>
+        )}
       </form>
 
       {/* Toggle */}
